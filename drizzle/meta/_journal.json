@@ -15,6 +15,27 @@
       "when": 1790045976152,
       "tag": "0001_wet_victor_mancha",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790195406013,
+      "tag": "0002_watery_lizard",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1790198971449,
+      "tag": "0003_overconfident_fallen_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790201209596,
+      "tag": "0004_far_expediter",
+      "breakpoints": true
     }
   ]
 }

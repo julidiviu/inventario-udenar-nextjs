@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD CONSTRAINT "users_email_required_check" CHECK ("users"."rol" = 'superadmin' OR "users"."email" IS NOT NULL);

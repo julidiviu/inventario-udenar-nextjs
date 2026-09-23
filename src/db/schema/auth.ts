@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   pgTable,
   serial,
   text,
@@ -7,16 +8,20 @@ import {
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { rolEnum } from "./enums";
 
 // PK híbrida aprobada: users con uuid, inventario con serial.
-export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  codigo: varchar("codigo", { length: 20 }).notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
-  rol: rolEnum("rol").notNull().default("estudiante"),
-  cedula: varchar("cedula", { length: 20 }).notNull().unique(),
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    codigo: varchar("codigo", { length: 20 }).notNull().unique(),
+    passwordHash: text("password_hash").notNull(),
+    rol: rolEnum("rol").notNull().default("estudiante"),
+    // Cédula nullable: se completa después, al completar el perfil.
+    cedula: varchar("cedula", { length: 20 }).unique(),
+    email: varchar("email", { length: 255 }).unique(),
   firstName: varchar("first_name", { length: 100 }),
   lastName: varchar("last_name", { length: 100 }),
   programa: varchar("programa", { length: 100 }),
@@ -34,7 +39,17 @@ export const users = pgTable("users", {
     .$onUpdate(() => new Date()),
   // Borrado lógico: deletedAt != null = eliminado
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
-});
+  },
+  (table) => [
+    // Email obligatorio salvo superadmin (agente externo que solo administra).
+    check(
+      "users_email_required_check",
+      sql`${table.rol} = 'superadmin' OR ${table.email} IS NOT NULL`,
+    ),
+    // Código numérico para todos los roles (estudiantes, profesores y admins).
+    check("users_codigo_numeric_check", sql`${table.codigo} ~ '^[0-9]+$'`),
+  ],
+);
 
 export const dependencias = pgTable("dependencias", {
   id: serial("id").primaryKey(),

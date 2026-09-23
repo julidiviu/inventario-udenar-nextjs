@@ -7,9 +7,13 @@
  *   npm run db:seed:admin
  *
  * Modo no interactivo (útil para automatizar o probar):
- *   npm run db:seed:admin -- --rol admin --codigo ADM001 --cedula 111 \
+ *   npm run db:seed:admin -- --rol admin --codigo 1001 --email ana@udenar.edu.co \
  *     --nombres Ana --apellidos Pérez --dep-codigo 34 \
  *     --dep-nombre "Ingeniería de Sistemas" --password "Secreta123" --yes
+ *
+ * Reglas: código numérico en todos los roles; email obligatorio para admin
+ * (auto-lowercase + regex), opcional para superadmin; cédula opcional
+ * en ambos casos (NULL si se omite).
  *
  * Nota: la contraseña en modo interactivo se escribe visible en consola
  * (readline estándar). Nunca se guarda en archivos: solo su hash bcrypt va a la DB.
@@ -26,7 +30,8 @@ type Rol = "admin" | "superadmin";
 interface AdminInput {
   rol: Rol;
   codigo: string;
-  cedula: string;
+  cedula: string | null;
+  email: string | null;
   firstName: string;
   lastName: string;
   programa: string | null;
@@ -38,11 +43,17 @@ interface AdminInput {
 
 class ValidationError extends Error {}
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CODIGO_RE = /^[0-9]+$/;
+
 // ---------- Núcleo compartido por ambos modos ----------
 
 async function createAdmin(data: AdminInput): Promise<void> {
   if (data.password.length < 8) {
     throw new ValidationError("La contraseña debe tener mínimo 8 caracteres.");
+  }
+  if (!CODIGO_RE.test(data.codigo)) {
+    throw new ValidationError("El código tiene que ser numérico.");
   }
   const [codigoTaken] = await db
     .select({ id: users.id })
@@ -51,12 +62,33 @@ async function createAdmin(data: AdminInput): Promise<void> {
   if (codigoTaken) {
     throw new ValidationError(`El código '${data.codigo}' ya existe.`);
   }
-  const [cedulaTaken] = await db
-    .select({ id: users.id })
-    .from(users)
-    .where(eq(users.cedula, data.cedula));
-  if (cedulaTaken) {
-    throw new ValidationError(`La cédula '${data.cedula}' ya existe.`);
+  // Email: obligatorio para admin, opcional para superadmin. Auto-lowercase.
+  const email = data.email?.trim().toLowerCase() || null;
+  if (data.rol === "admin" && !email) {
+    throw new ValidationError("El correo es obligatorio para el rol admin.");
+  }
+  if (email && !EMAIL_RE.test(email)) {
+    throw new ValidationError("El correo no es válido.");
+  }
+  if (email) {
+    const [emailTaken] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, email));
+    if (emailTaken) {
+      throw new ValidationError(`El correo '${email}' ya existe.`);
+    }
+  }
+  // Cédula opcional: solo se valida duplicado si se indicó.
+  const cedula = data.cedula?.trim() || null;
+  if (cedula) {
+    const [cedulaTaken] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.cedula, cedula));
+    if (cedulaTaken) {
+      throw new ValidationError(`La cédula '${cedula}' ya existe.`);
+    }
   }
 
   let depId: number | null = null;
@@ -102,7 +134,8 @@ async function createAdmin(data: AdminInput): Promise<void> {
         codigo: data.codigo,
         passwordHash,
         rol: data.rol,
-        cedula: data.cedula,
+        cedula,
+        email,
         firstName: data.firstName,
         lastName: data.lastName,
         programa: data.programa,
@@ -133,11 +166,11 @@ function hasFlag(name: string): boolean {
 function printHelp() {
   console.log(`Uso:
   npm run db:seed:admin
-  npm run db:seed:admin -- --rol admin --codigo ADM001 --cedula 111 --nombres Ana \\
+  npm run db:seed:admin -- --rol admin --codigo 1001 --email ana@udenar.edu.co --nombres Ana \\
     --apellidos Pérez --dep-codigo 34 --dep-nombre "Ing. de Sistemas" --password "Xxxxx123" --yes
 
-Flags: --rol (admin|superadmin) --codigo --cedula --nombres --apellidos
-  --programa --telefono --dep-codigo --dep-nombre --password --yes (omitir confirmación)`);
+Flags: --rol (admin|superadmin) --codigo --email (obligatorio para admin) --cedula (opcional)
+  --nombres --apellidos --programa --telefono --dep-codigo --dep-nombre --password --yes (omitir confirmación)`);
 }
 
 async function runFromFlags(): Promise<boolean> {
@@ -156,7 +189,8 @@ async function runFromFlags(): Promise<boolean> {
   const data: AdminInput = {
     rol,
     codigo,
-    cedula: getFlag("cedula") ?? "",
+    cedula: getFlag("cedula"),
+    email: getFlag("email"),
     firstName: getFlag("nombres") ?? "",
     lastName: getFlag("apellidos") ?? "",
     programa: getFlag("programa"),
@@ -166,12 +200,14 @@ async function runFromFlags(): Promise<boolean> {
     password: getFlag("password") ?? "",
   };
   for (const [k, v] of [
-    ["cedula", data.cedula],
     ["nombres", data.firstName],
     ["apellidos", data.lastName],
     ["password", data.password],
   ] as const) {
     if (!v) throw new ValidationError(`Falta el flag --${k}.`);
+  }
+  if (rol === "admin" && !data.email) {
+    throw new ValidationError("Falta el flag --email (obligatorio para admin).");
   }
 
   await createAdmin(data);
@@ -227,8 +263,27 @@ async function runInteractive() {
   for (;;) {
     console.log("--- Nuevo administrador ---");
     const rol = await askRol();
-    const codigo = await ask("Código (login, único)");
-    const cedula = await ask("Cédula (única)");
+    let codigo = "";
+    for (;;) {
+      codigo = await ask("Código (login, único, solo números)");
+      if (CODIGO_RE.test(codigo)) break;
+      console.log("  -> El código tiene que ser numérico.");
+    }
+    const cedula =
+      (await ask("Cédula (opcional, Enter para omitir)", {
+        allowEmpty: true,
+      })) || null;
+    const emailRaw =
+      rol === "admin"
+        ? await ask("Correo electrónico (obligatorio, único)")
+        : (await ask("Correo electrónico (opcional, Enter para omitir)", {
+            allowEmpty: true,
+          })) || null;
+    const email = emailRaw ? emailRaw.trim().toLowerCase() : null;
+    if (email && !EMAIL_RE.test(email)) {
+      console.log("  -> Correo no válido, intenta de nuevo.");
+      continue;
+    }
     const firstName = await ask("Nombres");
     const lastName = await ask("Apellidos");
     const programa =
@@ -273,7 +328,8 @@ async function runInteractive() {
     console.log("\nResumen:");
     console.log(`  Rol:          ${rol}`);
     console.log(`  Código:       ${codigo}`);
-    console.log(`  Cédula:       ${cedula}`);
+    if (email) console.log(`  Correo:       ${email}`);
+    if (cedula) console.log(`  Cédula:       ${cedula}`);
     console.log(`  Nombre:       ${firstName} ${lastName}`);
     if (programa) console.log(`  Programa:     ${programa}`);
     if (rol === "admin") console.log(`  Dependencia:  ${dependenciaCodigo}`);
@@ -285,6 +341,7 @@ async function runInteractive() {
           rol,
           codigo,
           cedula,
+          email,
           firstName,
           lastName,
           programa,

@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD CONSTRAINT "users_codigo_numeric_check" CHECK ("users"."codigo" ~ '^[0-9]+$');
