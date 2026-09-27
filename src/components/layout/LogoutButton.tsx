@@ -13,6 +13,8 @@ export function LogoutButton() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
+      // El modo oscuro es solo post-login: limpia la clase para no arrastrarla al /login.
+      document.documentElement.classList.remove("dark");
       router.replace("/login");
       router.refresh();
     }

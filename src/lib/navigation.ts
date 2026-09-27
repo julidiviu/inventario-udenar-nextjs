@@ -17,7 +17,7 @@ export interface NavItem {
 const FUTURE = "#";
 
 const comun: NavItem[] = [
-  { label: "Mi Perfil", href: FUTURE },
+  { label: "Mi Perfil", href: "/perfil" },
   { label: "Inicio", href: "/dashboard" },
 ];
 

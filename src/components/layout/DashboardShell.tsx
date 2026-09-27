@@ -15,7 +15,7 @@ export function DashboardShell({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-panel text-zinc-900">
+    <div className="flex min-h-screen bg-panel text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       {/* Sidebar escritorio */}
       <aside className="sticky top-0 hidden h-screen w-72 shrink-0 lg:block">{sidebar}</aside>
 

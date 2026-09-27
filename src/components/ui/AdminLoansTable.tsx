@@ -18,12 +18,12 @@ export interface AdminLoanRow {
  */
 export function AdminLoansTable({ rows }: { rows: AdminLoanRow[] }) {
   return (
-    <section className="overflow-hidden rounded-[18px] bg-white shadow-[0_10px_32px_rgba(0,0,0,0.12)]">
+    <section className="overflow-hidden rounded-[18px] bg-white shadow-[0_10px_32px_rgba(0,0,0,0.12)] dark:bg-zinc-900 dark:shadow-none dark:ring-1 dark:ring-zinc-800">
       <h2 className="bg-brand-700 px-4 py-3 text-base font-bold text-white">Préstamos Recientes</h2>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[900px] border-collapse text-sm">
           <thead>
-            <tr className="bg-zinc-100 text-center">
+            <tr className="bg-zinc-100 text-center dark:bg-zinc-800 dark:text-zinc-200">
               <th className="px-3 py-2 font-semibold">Recurso</th>
               <th className="px-3 py-2 font-semibold">ID Recurso</th>
               <th className="px-3 py-2 font-semibold">Usuario</th>
@@ -35,7 +35,7 @@ export function AdminLoansTable({ rows }: { rows: AdminLoanRow[] }) {
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={`${r.recursoId}-${r.usuarioNombre}-${i}`} className="border-t text-center transition hover:bg-brand-50">
+              <tr key={`${r.recursoId}-${r.usuarioNombre}-${i}`} className="border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800">
                 <td className="px-3 py-2">{r.recursoNombre}</td>
                 <td className="px-3 py-2">{r.recursoId}</td>
                 <td className="px-3 py-2">{r.usuarioNombre}</td>
@@ -70,12 +70,12 @@ export function AdminLoansTable({ rows }: { rows: AdminLoanRow[] }) {
                       <a
                         href={r.contratoUrl}
                         download
-                        className="rounded-lg border border-green-700 px-2.5 py-1 text-xs font-semibold text-green-800 transition hover:bg-green-50"
+                        className="rounded-lg border border-green-700 px-2.5 py-1 text-xs font-semibold text-green-800 transition hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-950"
                       >
                         Contrato
                       </a>
                     ) : (
-                      <span className="text-xs text-zinc-500">Contrato no disponible</span>
+                      <span className="text-xs text-zinc-500 dark:text-zinc-400">Contrato no disponible</span>
                     )}
                   </div>
                 </td>

@@ -18,7 +18,7 @@ export function DashboardLayout({
   return (
     <DashboardShell
       sidebar={
-        <div className="flex h-full flex-col bg-brand-700">
+        <div className="flex h-full flex-col bg-brand-700 dark:bg-zinc-900">
           <Brand />
           <UserPanel user={user} />
           <div className="flex-1 overflow-y-auto">

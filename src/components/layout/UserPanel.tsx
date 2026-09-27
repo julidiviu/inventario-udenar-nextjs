@@ -14,7 +14,7 @@ export function UserPanel({ user }: { user: DashboardUser }) {
         )}
       </div>
       <p className="mt-3 text-sm font-bold text-white">{user.fullName}</p>
-      <p className="text-xs text-brand-100">{user.rolLabel}</p>
+      <p className="text-xs text-brand-100 dark:text-zinc-400">{user.rolLabel}</p>
     </div>
   );
 }

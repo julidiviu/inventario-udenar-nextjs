@@ -6,6 +6,10 @@ import { getSession } from "@/lib/auth";
 import { getAdminLoans, getBorrowerLoans } from "@/lib/dashboard-data";
 import { AdminOverview } from "@/components/dashboard/AdminOverview";
 import { BorrowerOverview } from "@/components/dashboard/BorrowerOverview";
+import { mockAdminLoans, mockBorrowerLoans, mockSuperadminLoans } from "@/mocks/dashboard";
+
+/** Mocks solo en desarrollo con MOCK_DASHBOARD=1. En producción siempre datos reales. */
+const USE_MOCKS = process.env.MOCK_DASHBOARD === "1" && process.env.NODE_ENV !== "production";
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -18,12 +22,15 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   if (user.rol === "estudiante" || user.rol === "profesor") {
-    const rows = await getBorrowerLoans(user.id);
+    const rows = USE_MOCKS ? mockBorrowerLoans : await getBorrowerLoans(user.id);
     const title = user.rol === "profesor" ? "Panel de Profesor" : "Panel de Estudiante";
     return <BorrowerOverview title={title} rows={rows} />;
   }
 
   if (user.rol === "admin" || user.rol === "superadmin") {
+    if (USE_MOCKS) {
+      return <AdminOverview rows={user.rol === "superadmin" ? mockSuperadminLoans : mockAdminLoans} />;
+    }
     const result = await getAdminLoans({ adminId: user.id, isSuperadmin: user.rol === "superadmin" });
     if (result.unassigned) return <AdminOverview rows={[]} unassigned />;
     return <AdminOverview rows={result.rows} />;
