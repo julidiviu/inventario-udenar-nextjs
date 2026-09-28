@@ -38,7 +38,8 @@ const adminExtra: NavItem[] = [
 ];
 
 const prestatarioExtra: NavItem[] = [
-  { label: "Solicitar Préstamo", href: FUTURE },
+  // UI-first: el flujo de solicitud inicia en el grid de dependencias (modo lectura).
+  { label: "Solicitar Préstamo", href: "/dependencias" },
   {
     label: "Mis Solicitudes",
     href: FUTURE,
@@ -60,7 +61,7 @@ export function getNavByRole(rol: Rol): NavItem[] {
       return [...comun, ...prestatarioExtra];
     case "superadmin":
       // Mínimo aprobado: Dashboard + Dependencias.
-      return [...comun, { label: "Dependencias", href: FUTURE }];
+      return [...comun, { label: "Dependencias", href: "/dependencias" }];
     default:
       return comun;
   }
