@@ -13,8 +13,8 @@ export function LogoutButton() {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } finally {
-      // El modo oscuro es solo post-login: limpia la clase para no arrastrarla al /login.
-      document.documentElement.classList.remove("dark");
+      // El tema es preferencia del dispositivo, no de la sesión: se conserva
+      // clase y localStorage intactos para no desincronizar el ThemeToggle.
       router.replace("/login");
       router.refresh();
     }
