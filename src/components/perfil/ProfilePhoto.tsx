@@ -5,24 +5,32 @@ import Image from "next/image";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+const FOTO_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+
 export function ProfilePhoto({
   fotoUrl,
   nombre,
-  onChange,
+  subiendo,
+  onSelect,
+  onError,
 }: {
   fotoUrl: string | null;
   nombre: string;
-  onChange: (url: string) => void;
+  subiendo: boolean;
+  onSelect: (file: File) => void;
+  onError: (msg: string) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
-    if (!file) return;
-    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) return;
-    const url = URL.createObjectURL(file);
-    onChange(url);
     e.target.value = "";
+    if (!file) return;
+    if (!FOTO_TYPES.has(file.type)) {
+      onError("La foto debe ser PNG, JPG o WebP.");
+      return;
+    }
+    onSelect(file);
   }
 
   return (
@@ -47,7 +55,12 @@ export function ProfilePhoto({
         onChange={handleFile}
         aria-label="Cambiar Foto"
       />
-      <Button type="button" onClick={() => inputRef.current?.click()} className="w-full">
+      <Button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={subiendo}
+        className="w-full"
+      >
         <Upload />
         Cambiar Foto
       </Button>

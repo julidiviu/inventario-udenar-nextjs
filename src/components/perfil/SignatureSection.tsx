@@ -6,7 +6,7 @@ import { PenLine, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SignatureDialog } from "./SignatureDialog";
 import { pngFileToFirmaPendiente } from "@/lib/firma";
-import type { FirmaPendiente } from "@/mocks/perfil";
+import type { FirmaPendiente } from "@/lib/firma";
 
 export function SignatureSection({
   firmaUrl,

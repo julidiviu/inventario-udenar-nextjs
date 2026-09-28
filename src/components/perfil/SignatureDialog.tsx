@@ -12,7 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { dataUrlToPngFile } from "@/lib/firma";
-import type { FirmaPendiente } from "@/mocks/perfil";
+import type { FirmaPendiente } from "@/lib/firma";
 
 export function SignatureDialog({
   open,
