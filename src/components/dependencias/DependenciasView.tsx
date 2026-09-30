@@ -20,40 +20,101 @@ import type { AdminDisponible, Dependencia, DependenciasMode } from "./types";
 interface DependenciasViewProps {
   mode: DependenciasMode;
   initialDependencias: Dependencia[];
-  admins: AdminDisponible[];
 }
 
-export function DependenciasView({ mode, initialDependencias, admins }: DependenciasViewProps) {
+async function readError(res: Response): Promise<string> {
+  try {
+    const body = await res.json();
+    return typeof body.error === "string" ? body.error : "Operación fallida.";
+  } catch {
+    return "Operación fallida.";
+  }
+}
+
+export function DependenciasView({ mode, initialDependencias }: DependenciasViewProps) {
   const [dependencias, setDependencias] = useState<Dependencia[]>(initialDependencias);
+  const [admins, setAdmins] = useState<AdminDisponible[]>([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Dependencia | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
   const [deleting, setDeleting] = useState<Dependencia | null>(null);
+  const [deleteError, setDeleteError] = useState("");
 
-  function openCreate() {
-    setEditing(null);
-    setModalOpen(true);
-  }
-
-  function openEdit(dependencia: Dependencia) {
+  async function openModal(dependencia: Dependencia | null) {
     setEditing(dependencia);
+    setFormError("");
     setModalOpen(true);
-  }
-
-  function handleSave(data: DependenciaFormData) {
-    if (editing) {
-      setDependencias((prev) => prev.map((d) => (d.id === editing.id ? { ...d, ...data } : d)));
-    } else {
-      const nextId = dependencias.length ? Math.max(...dependencias.map((d) => d.id)) + 1 : 1;
-      setDependencias((prev) => [...prev, { id: nextId, ...data }]);
+    try {
+      const url = dependencia
+        ? `/api/admins/disponibles?dependenciaId=${dependencia.id}`
+        : "/api/admins/disponibles";
+      const res = await fetch(url);
+      if (res.ok) {
+        const body = await res.json();
+        setAdmins(Array.isArray(body.admins) ? body.admins : []);
+      }
+    } catch {
+      setAdmins([]);
     }
-    setModalOpen(false);
-    setEditing(null);
   }
 
-  function handleDelete() {
+  async function handleSave(data: DependenciaFormData, file: File | null) {
+    setSaving(true);
+    setFormError("");
+    try {
+      let imagenUrl = data.imagenUrl;
+      if (file) {
+        const form = new FormData();
+        form.set("file", file);
+        form.set("folder", "dependencias");
+        form.set("kind", "foto");
+        const up = await fetch("/api/upload", { method: "POST", body: form });
+        if (!up.ok) {
+          setFormError(await readError(up));
+          return;
+        }
+        imagenUrl = (await up.json()).url as string;
+      }
+      const res = await fetch(
+        editing ? `/api/dependencias/${editing.id}` : "/api/dependencias",
+        {
+          method: editing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, imagenUrl }),
+        },
+      );
+      if (!res.ok) {
+        setFormError(await readError(res));
+        return;
+      }
+      const row = (await res.json()).dependencia as Dependencia;
+      setDependencias((prev) =>
+        editing ? prev.map((d) => (d.id === editing.id ? row : d)) : [...prev, row],
+      );
+      setModalOpen(false);
+      setEditing(null);
+    } catch {
+      setFormError("No se pudo guardar la dependencia.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
     if (!deleting) return;
-    setDependencias((prev) => prev.filter((d) => d.id !== deleting.id));
-    setDeleting(null);
+    setDeleteError("");
+    try {
+      const res = await fetch(`/api/dependencias/${deleting.id}`, { method: "DELETE" });
+      if (!res.ok) {
+        setDeleteError(await readError(res));
+        return;
+      }
+      setDependencias((prev) => prev.filter((d) => d.id !== deleting.id));
+      setDeleting(null);
+    } catch {
+      setDeleteError("No se pudo eliminar la dependencia.");
+    }
   }
 
   return (
@@ -66,7 +127,7 @@ export function DependenciasView({ mode, initialDependencias, admins }: Dependen
             : "Selecciona una dependencia para consultar los recursos disponibles"}
         </p>
         {mode === "admin" && (
-          <Button onClick={openCreate}>
+          <Button onClick={() => openModal(null)}>
             <Plus /> Crear Dependencia
           </Button>
         )}
@@ -77,39 +138,50 @@ export function DependenciasView({ mode, initialDependencias, admins }: Dependen
       ) : (
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {dependencias.map((d) => (
-            <DependenciaCard key={d.id} dependencia={d} mode={mode} onEdit={openEdit} onDelete={setDeleting} />
+            <DependenciaCard
+              key={d.id}
+              dependencia={d}
+              mode={mode}
+              onEdit={(dep) => openModal(dep)}
+              onDelete={(dep) => {
+                setDeleting(dep);
+                setDeleteError("");
+              }}
+            />
           ))}
         </div>
       )}
 
-      <DependenciaModal
-        key={`${modalOpen}-${editing?.id ?? "new"}`}
-        open={modalOpen}
-        initial={editing}
-        admins={admins}
-        onClose={() => {
-          setModalOpen(false);
-          setEditing(null);
-        }}
-        onSave={handleSave}
-      />
+      {mode === "admin" && (
+        <DependenciaModal
+          key={`${modalOpen}-${editing?.id ?? "new"}`}
+          open={modalOpen}
+          initial={editing}
+          admins={admins}
+          saving={saving}
+          serverError={formError}
+          onClose={() => {
+            setModalOpen(false);
+            setEditing(null);
+          }}
+          onSave={handleSave}
+        />
+      )}
 
       <Dialog open={deleting !== null} onOpenChange={(v) => !v && setDeleting(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Eliminar dependencia</DialogTitle>
             <DialogDescription>
-              ¿Eliminar &laquo;{deleting?.nombre}&raquo;? Esta acción solo afecta la vista local en esta fase.
+              ¿Eliminar &laquo;{deleting?.nombre}&raquo;? Se ocultará de la lista (borrado lógico).
             </DialogDescription>
           </DialogHeader>
+          {deleteError && <p className="text-sm font-medium text-red-600">{deleteError}</p>}
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleting(null)}>
               Cancelar
             </Button>
-            <Button
-              onClick={handleDelete}
-              className="bg-red-600 text-white hover:bg-red-700"
-            >
+            <Button onClick={handleDelete} className="bg-red-600 text-white hover:bg-red-700">
               Eliminar
             </Button>
           </DialogFooter>

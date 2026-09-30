@@ -5,6 +5,7 @@ import {
   serial,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -51,17 +52,19 @@ export const users = pgTable(
   ],
 );
 
-export const dependencias = pgTable("dependencias", {
+export const dependencias = pgTable(
+  "dependencias",
+  {
   id: serial("id").primaryKey(),
-  // Código institucional manual (ej. "34"), UNIQUE NOT NULL
-  codigo: text("codigo").notNull().unique(),
-  nombre: varchar("nombre", { length: 100 }).notNull().unique(),
+  // Código institucional manual (ej. "34"). Unicidad solo entre activas
+  // (ver índices parciales abajo): el valor de una eliminada es reutilizable.
+  codigo: text("codigo").notNull(),
+  nombre: varchar("nombre", { length: 100 }).notNull(),
   descripcion: text("descripcion"),
   imagenUrl: text("imagen_url"),
-  // OneToOne: un admin administra máximo una dependencia
-  administradorId: uuid("administrador_id")
-    .unique()
-    .references(() => users.id, { onDelete: "set null" }),
+  // OneToOne entre activas: un admin administra máximo una dependencia activa.
+  // La fila eliminada conserva el id como historial sin bloquear.
+  administradorId: uuid("administrador_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),
@@ -70,7 +73,16 @@ export const dependencias = pgTable("dependencias", {
     .defaultNow()
     .$onUpdate(() => new Date()),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
-});
+  },
+  (table) => [
+    // Código de negocio: entero de máximo 5 dígitos (se valida también en app).
+    check("dependencias_codigo_check", sql`${table.codigo} ~ '^[0-9]{1,5}$'`),
+    // Unicidad solo entre filas activas: lo de una eliminada se puede reutilizar.
+    uniqueIndex("dependencias_codigo_activas_uniq").on(table.codigo).where(sql`${table.deletedAt} IS NULL`),
+    uniqueIndex("dependencias_nombre_activas_uniq").on(table.nombre).where(sql`${table.deletedAt} IS NULL`),
+    uniqueIndex("dependencias_admin_activas_uniq").on(table.administradorId).where(sql`${table.deletedAt} IS NULL`),
+  ],
+);
 
 export const dependenciasRelations = relations(dependencias, ({ one }) => ({
   administrador: one(users, {

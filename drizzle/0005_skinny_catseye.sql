@@ -1,0 +1,1 @@
+ALTER TABLE "dependencias" ADD CONSTRAINT "dependencias_codigo_check" CHECK ("dependencias"."codigo" ~ '^[0-9]{1,5}$');

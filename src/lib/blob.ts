@@ -64,3 +64,12 @@ export async function deleteFromBlob(url: string) {
   assertEnv();
   await del(url);
 }
+
+/** Solo las URLs de nuestro Blob se intentan borrar; el resto se conserva. */
+export function isBlobUrl(value: string): boolean {
+  try {
+    return new URL(value).hostname.endsWith("blob.vercel-storage.com");
+  } catch {
+    return false;
+  }
+}

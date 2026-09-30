@@ -3,7 +3,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
-import { deleteFromBlob } from "@/lib/blob";
+import { deleteFromBlob, isBlobUrl } from "@/lib/blob";
 import { getFullName, getRolLabel } from "@/components/layout/user";
 import { emptyToNull } from "@/lib/perfil";
 
@@ -19,13 +19,6 @@ function isHttpsUrl(value: string): boolean {
 }
 
 /** Solo las fotos guardadas en nuestro Blob se intentan borrar; el resto se conserva. */
-function isBlobUrl(value: string): boolean {
-  try {
-    return new URL(value).hostname.endsWith("blob.vercel-storage.com");
-  } catch {
-    return false;
-  }
-}
 
 async function loadCurrent(userId: string) {
   const [user] = await db

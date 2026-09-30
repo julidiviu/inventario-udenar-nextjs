@@ -36,6 +36,20 @@
       "when": 1790201209596,
       "tag": "0004_far_expediter",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790732197578,
+      "tag": "0005_skinny_catseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790739466532,
+      "tag": "0006_black_senator_kelly",
+      "breakpoints": true
     }
   ]
 }

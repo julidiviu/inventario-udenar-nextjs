@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CODIGO_RE, NOMBRE_MAX } from "@/lib/dependencias";
 import type { AdminDisponible, Dependencia } from "./types";
 
 export interface DependenciaFormData {
@@ -26,40 +27,53 @@ interface DependenciaModalProps {
   open: boolean;
   initial: Dependencia | null;
   admins: AdminDisponible[];
+  saving: boolean;
+  serverError: string;
   onClose: () => void;
-  onSave: (data: DependenciaFormData) => void;
+  onSave: (data: DependenciaFormData, file: File | null) => void;
 }
 
 const inputClass =
   "h-11 w-full rounded-[10px] border border-zinc-300 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-brand-700 focus:ring-2 focus:ring-brand-500/30 focus:outline-none dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100";
 
-export function DependenciaModal({ open, initial, admins, onClose, onSave }: DependenciaModalProps) {
+export function DependenciaModal({ open, initial, admins, saving, serverError, onClose, onSave }: DependenciaModalProps) {
   // El padre remonta con key por apertura/edición: el estado inicial basta, sin effects.
   const [codigo, setCodigo] = useState(initial?.codigo ?? "");
   const [nombre, setNombre] = useState(initial?.nombre ?? "");
   const [descripcion, setDescripcion] = useState(initial?.descripcion ?? "");
-  const [imagenUrl, setImagenUrl] = useState<string | null>(initial?.imagenUrl ?? null);
+  const [imagenUrl] = useState<string | null>(initial?.imagenUrl ?? null);
+  const [file, setFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
   const [administradorId, setAdministradorId] = useState(initial?.administradorId ?? "");
   const [error, setError] = useState("");
 
-  function handleFile(file: File | undefined) {
-    if (!file) return;
-    setImagenUrl(URL.createObjectURL(file));
+  function handleFile(next: File | undefined) {
+    if (!next) return;
+    setFile(next);
+    setPreview(URL.createObjectURL(next));
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!codigo.trim() || !nombre.trim()) {
-      setError("El código y el nombre son obligatorios.");
+    if (!CODIGO_RE.test(codigo.trim())) {
+      setError("El código debe ser un número de máximo 5 dígitos.");
       return;
     }
-    onSave({
-      codigo: codigo.trim(),
-      nombre: nombre.trim(),
-      descripcion: descripcion.trim() ? descripcion.trim() : null,
-      imagenUrl,
-      administradorId: administradorId ? administradorId : null,
-    });
+    if (!nombre.trim() || nombre.trim().length > NOMBRE_MAX) {
+      setError("El nombre es requerido (máximo 100 caracteres).");
+      return;
+    }
+    setError("");
+    onSave(
+      {
+        codigo: codigo.trim(),
+        nombre: nombre.trim(),
+        descripcion: descripcion.trim() ? descripcion.trim() : null,
+        imagenUrl,
+        administradorId: administradorId ? administradorId : null,
+      },
+      file,
+    );
   }
 
   return (
@@ -115,9 +129,9 @@ export function DependenciaModal({ open, initial, admins, onClose, onSave }: Dep
               accept="image/*"
               onChange={(e) => handleFile(e.target.files?.[0])}
             />
-            {imagenUrl && (
+            {(preview ?? imagenUrl) && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={imagenUrl} alt="Vista previa" className="h-28 w-full rounded-[10px] object-cover" />
+              <img src={preview ?? imagenUrl ?? ""} alt="Vista previa" className="h-28 w-full rounded-[10px] object-cover" />
             )}
           </div>
 
@@ -136,19 +150,25 @@ export function DependenciaModal({ open, initial, admins, onClose, onSave }: Dep
                 )}
               {admins.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.nombreCompleto} ({a.codigo})
+                  {a.id === initial?.administradorId
+                    ? `Administrador actual - ${a.nombreCompleto}`
+                    : `${a.nombreCompleto} (${a.codigo})`}
                 </option>
               ))}
             </select>
           </div>
 
-          {error && <p className="text-sm font-medium text-red-600">{error}</p>}
+          {(error || serverError) && (
+            <p className="text-sm font-medium text-red-600">{error || serverError}</p>
+          )}
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button type="button" variant="outline" onClick={onClose} disabled={saving}>
               Cancelar
             </Button>
-            <Button type="submit">Guardar</Button>
+            <Button type="submit" disabled={saving}>
+              {saving ? "Guardando…" : "Guardar"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

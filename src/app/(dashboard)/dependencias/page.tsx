@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
+import { asc, isNull } from "drizzle-orm";
+import { db } from "@/db";
+import { dependencias } from "@/db/schema";
 import { DependenciasView } from "@/components/dependencias/DependenciasView";
 import { getSession } from "@/lib/auth";
-import { mockAdminsDisponibles, mockDependencias } from "@/mocks/dependencias";
 
 export default async function DependenciasPage() {
   const session = await getSession();
@@ -9,7 +11,20 @@ export default async function DependenciasPage() {
   // El rol admin no contempla esta vista.
   if (session.rol === "admin") redirect("/dashboard");
 
+  const rows = await db
+    .select({
+      id: dependencias.id,
+      codigo: dependencias.codigo,
+      nombre: dependencias.nombre,
+      descripcion: dependencias.descripcion,
+      imagenUrl: dependencias.imagenUrl,
+      administradorId: dependencias.administradorId,
+    })
+    .from(dependencias)
+    .where(isNull(dependencias.deletedAt))
+    .orderBy(asc(dependencias.id));
+
   const mode = session.rol === "superadmin" ? "admin" : "view";
 
-  return <DependenciasView mode={mode} initialDependencias={mockDependencias} admins={mockAdminsDisponibles} />;
+  return <DependenciasView mode={mode} initialDependencias={rows} />;
 }
