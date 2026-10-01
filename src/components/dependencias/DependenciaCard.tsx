@@ -72,7 +72,7 @@ export function DependenciaCard({ dependencia, mode, onEdit, onDelete }: Depende
 
         {mode === "view" && (
           <Button asChild className="w-full bg-brand-700/10 text-brand-700 hover:bg-brand-700/15 hover:text-brand-900">
-            <a href="#">
+            <a href={`/dependencias/${dependencia.id}`}>
               <ExternalLink /> Ver Recursos
             </a>
           </Button>

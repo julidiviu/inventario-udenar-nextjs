@@ -22,7 +22,7 @@ const comun: NavItem[] = [
 ];
 
 const adminExtra: NavItem[] = [
-  { label: "Inventario", href: FUTURE },
+  { label: "Inventario", href: "/inventario" },
   {
     label: "Solicitudes de Préstamos",
     href: FUTURE,

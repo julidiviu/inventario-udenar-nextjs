@@ -41,6 +41,12 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 Stack: Next.js 16 (App Router) + Drizzle ORM + postgres-js + jose (JWT) + Vercel Blob. Tailwind v4.
 
+## Memoria activa entre sesiones
+- Al iniciar la sesión, lee `MEMORY.md` para conocer el estado actual y las decisiones tomadas recientemente.
+- Al terminar cada tarea/módulo significativo, actualiza `MEMORY.md` manteniendo un resumen breve (máximo ~50 líneas).
+- Si una decisión se convierte en regla permanente del proyecto, proponla para moverla a este `AGENTS.md`.
+- NUNCA guardes datos sensibles (tokens, secretos, passwords) en `MEMORY.md`.
+
 ## Shell (Windows PowerShell)
 - Separador `;`, NO `&&`. `Remove-Item a,b` (no `del a b`).
 - Drizzle-kit NO lee `.env.local`: usar siempre los scripts `db:*` (ya envueltos con `dotenv-cli`). `next dev` sí lo lee, pero exige reinicio ante vars nuevas.
@@ -69,6 +75,13 @@ Stack: Next.js 16 (App Router) + Drizzle ORM + postgres-js + jose (JWT) + Vercel
 ## Uploads (`/api/upload`, `src/lib/blob.ts`)
 - Store Blob debe ser **PÚBLICO** (uno privado rechaza `put` público). En DB solo URLs `text`, nunca binarios.
 - Validar antes del `put` (tipo/tamaño/carpeta). Allowlist de prefijos provisional (espejo de Django); la organización final se decide por formulario, no globalmente.
+- Flujo en 2 pasos: `POST /api/upload` → `{url}` → API de negocio guarda el `url`. Si el `insert` falla, borrar huérfano best-effort; si el `del(previa)` falla tras `update`, revertir DB al valor previo + borrar la nueva. Solo borrar si `isBlobUrl()`.
+
+## APIs (`/api/*`)
+- Respuesta: `{ok:true,...}` vs `{error, field?}`. 400+field validación, 409 duplicado/inmutable, 401 genérico. Mapear `23505→409` (`uniqueField`), `23514→400` vía `dbErrorCause().cause`.
+- Validación espejo cliente+servidor con constantes en `src/lib/*`; `""→null` con `emptyToNull`.
+- Borrado lógico: filtrar siempre `isNull(deletedAt)`; unicidad en índices parciales `WHERE deletedAt IS NULL`; 409 distintivo si el valor es de una eliminada.
+- No importar helpers entre `route.ts`: mover a `src/lib/`. Server Page pasa `initialX` a Client View; modal resetea con `key`, no `useEffect`.
 
 ## Verificación
 Orden: `npx tsc --noEmit` → `npm run lint` → `npm run build`. Probar endpoints con dev en `:3000` (`/api/health` → `{"ok":true}`).
@@ -76,3 +89,4 @@ Orden: `npx tsc --noEmit` → `npm run lint` → `npm run build`. Probar endpoin
 ## Gobernanza del dueño
 - CERO CAMBIOS A CIEGAS: confirmar antes de tocar cualquier columna/tabla/tipo.
 - Local-first; nube después. Preguntar ante caminos alternativos (ej. store privado vs público).
+- Siempre actualizar `MEMORY.md` al concluir o cerrar un módulo.
