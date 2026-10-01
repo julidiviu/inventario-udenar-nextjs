@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Building2, ExternalLink, ImageIcon, MoreVertical, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -72,9 +73,9 @@ export function DependenciaCard({ dependencia, mode, onEdit, onDelete }: Depende
 
         {mode === "view" && (
           <Button asChild className="w-full bg-brand-700/10 text-brand-700 hover:bg-brand-700/15 hover:text-brand-900">
-            <a href={`/dependencias/${dependencia.id}`}>
+            <Link href={`/dependencias/${dependencia.id}`}>
               <ExternalLink /> Ver Recursos
-            </a>
+            </Link>
           </Button>
         )}
       </div>

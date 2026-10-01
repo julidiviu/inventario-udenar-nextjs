@@ -1,8 +1,7 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
-
-export const THEME_STORAGE_KEY = "theme";
+import { useEffect, useSyncExternalStore } from "react";
+import { THEME_STORAGE_KEY } from "@/lib/theme";
 
 function SunIcon({ className = "" }: { className?: string }) {
   return (
@@ -21,14 +20,14 @@ function MoonIcon({ className = "" }: { className?: string }) {
   );
 }
 
+// Única fuente de verdad: la clase en <html>. (Antes mezclaba clase OR
+// localStorage y el ícono podía mentir sobre la página visible.)
 function getThemeSnapshot(): boolean {
-  return (
-    document.documentElement.classList.contains("dark") ||
-    localStorage.getItem(THEME_STORAGE_KEY) === "dark"
-  );
+  return document.documentElement.classList.contains("dark");
 }
 
 function subscribeTheme(onChange: () => void): () => void {
+  // storage: sincroniza entre pestañas; MutationObserver: cambios en esta pestaña.
   window.addEventListener("storage", onChange);
   const observer = new MutationObserver(onChange);
   observer.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
@@ -38,27 +37,54 @@ function subscribeTheme(onChange: () => void): () => void {
   };
 }
 
+function getStoredTheme(): boolean {
+  try {
+    return localStorage.getItem(THEME_STORAGE_KEY) === "dark";
+  } catch {
+    return false;
+  }
+}
+
 function applyTheme(dark: boolean) {
   document.documentElement.classList.toggle("dark", dark);
-  if (dark) localStorage.setItem(THEME_STORAGE_KEY, "dark");
-  else localStorage.removeItem(THEME_STORAGE_KEY);
+  document.documentElement.style.colorScheme = dark ? "dark" : "light";
+  try {
+    if (dark) localStorage.setItem(THEME_STORAGE_KEY, "dark");
+    else localStorage.removeItem(THEME_STORAGE_KEY);
+  } catch {
+    // Almacenamiento no disponible: la clase ya refleja el tema.
+  }
 }
 
 /** Botón icono sol/luna. Solo vive en el Navbar interno: el login no lo monta. */
 export function ThemeToggle() {
-  // SSR devuelve false; el cliente se hidrata con el snapshot real sin mismatch.
   const dark = useSyncExternalStore(subscribeTheme, getThemeSnapshot, () => false);
+  // true solo en cliente tras hidratar (sin setState en efecto): SSR y primer
+  // render idénticos → sin mismatch de hidratación.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  // Autocuración: si el script pre-paint no corrió, aplica lo guardado al montar.
+  useEffect(() => {
+    if (mounted && getStoredTheme() !== getThemeSnapshot()) applyTheme(getStoredTheme());
+  }, [mounted]);
+
+  // SSR y primer render del cliente idénticos (luna) → sin mismatch de hidratación.
+  const shownDark = mounted ? dark : false;
 
   return (
     <button
       type="button"
-      onClick={() => applyTheme(!dark)}
-      aria-pressed={dark}
-      aria-label={dark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+      onClick={() => applyTheme(!shownDark)}
+      aria-pressed={shownDark}
+      aria-label={shownDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       title="Cambiar tema"
       className="grid h-9 w-9 place-items-center rounded-lg text-white transition hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
     >
-      {dark ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
+      {shownDark ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
     </button>
   );
 }

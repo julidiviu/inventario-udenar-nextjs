@@ -13,6 +13,7 @@
 - Validación espejo: `CODIGO_RE`/`NOMBRE_MAX` en `src/lib/dependencias.ts` usadas por modal y route.
 - Contrato API: `{ok}` vs `{error, field?}`; `23505→409`, `23514→400` vía `dbErrorCause().cause`.
 - Server Page + Client View con `initialX`; modal remonta con `key`, sin `useEffect`.
+- Tema claro/oscuro sin dependencias: `src/lib/theme.ts` (clave + script pre-paint), `ThemeToggle` con guard `mounted` (sin mismatch) y snapshot solo de la clase `.dark`; layout usa `<script>` plano bloqueante (no `next/script`); `globals.css` ata `--background`/`--foreground` a `.dark`; `DependenciaCard` navega con `next/link` (SPA, conserva la clase).
 
 ## Próximos Pasos
 - Módulo "Recursos por Dependencia": UI lista con mocks, falta API (tipos/recursos ya en schema).
