@@ -1,9 +1,8 @@
 import { redirect } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { dependencias } from "@/db/schema";
+import { dependencias, recursos, tiposRecurso } from "@/db/schema";
 import { InventarioView } from "@/components/inventario/InventarioView";
-import { MOCK_RECURSOS, MOCK_TIPOS } from "@/components/inventario/types";
 import { getSession } from "@/lib/auth";
 
 export default async function InventarioPage() {
@@ -13,17 +12,47 @@ export default async function InventarioPage() {
   if (session.rol !== "admin") redirect("/dashboard");
 
   const [dep] = await db
-    .select({ nombre: dependencias.nombre })
+    .select({ id: dependencias.id, nombre: dependencias.nombre })
     .from(dependencias)
     .where(
       and(eq(dependencias.administradorId, session.sub), isNull(dependencias.deletedAt)),
     );
 
+  const tipos = dep
+    ? await db
+        .select({
+          id: tiposRecurso.id,
+          nombre: tiposRecurso.nombre,
+          dependenciaId: tiposRecurso.dependenciaId,
+        })
+        .from(tiposRecurso)
+        .where(eq(tiposRecurso.dependenciaId, dep.id))
+        .orderBy(asc(tiposRecurso.id))
+    : [];
+
+  const tipoIds = tipos.map((t) => t.id);
+  const rows =
+    tipoIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: recursos.id,
+            qr: recursos.qr,
+            tipoId: recursos.tipoId,
+            nombre: recursos.nombre,
+            descripcion: recursos.descripcion,
+            fotoUrl: recursos.fotoUrl,
+            disponible: recursos.disponible,
+          })
+          .from(recursos)
+          .where(inArray(recursos.tipoId, tipoIds))
+          .orderBy(asc(recursos.id));
+
   return (
     <InventarioView
       mode="admin"
-      initialTipos={MOCK_TIPOS}
-      initialRecursos={MOCK_RECURSOS}
+      initialTipos={tipos}
+      initialRecursos={rows}
       dependenciaNombre={dep?.nombre ?? null}
     />
   );

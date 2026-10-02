@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { addBusinessDays, type Recurso } from "./types";
+import { addBusinessDays } from "@/lib/recursos";
+import type { Recurso } from "./types";
 
 interface SolicitudModalProps {
   open: boolean;

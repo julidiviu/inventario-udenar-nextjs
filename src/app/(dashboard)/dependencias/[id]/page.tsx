@@ -1,9 +1,8 @@
 import { notFound, redirect } from "next/navigation";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { dependencias, solicitudesPrestamo, users } from "@/db/schema";
+import { dependencias, recursos, solicitudesPrestamo, tiposRecurso, users } from "@/db/schema";
 import { InventarioView } from "@/components/inventario/InventarioView";
-import { MOCK_RECURSOS, MOCK_TIPOS } from "@/components/inventario/types";
 import { getSession } from "@/lib/auth";
 
 export default async function RecursosDependenciaPage({
@@ -13,8 +12,9 @@ export default async function RecursosDependenciaPage({
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  // El rol admin no contempla esta vista (gestiona desde /inventario).
-  if (session.rol === "admin") redirect("/dashboard");
+  // Solo estudiante y profesor consultan recursos (admin gestiona en /inventario,
+  // superadmin solo gestiona dependencias).
+  if (session.rol !== "estudiante" && session.rol !== "profesor") redirect("/dashboard");
 
   const { id } = await params;
   const [dep] = await db
@@ -22,6 +22,34 @@ export default async function RecursosDependenciaPage({
     .from(dependencias)
     .where(and(eq(dependencias.id, Number(id)), isNull(dependencias.deletedAt)));
   if (!dep) notFound();
+
+  const tipos = await db
+    .select({
+      id: tiposRecurso.id,
+      nombre: tiposRecurso.nombre,
+      dependenciaId: tiposRecurso.dependenciaId,
+    })
+    .from(tiposRecurso)
+    .where(eq(tiposRecurso.dependenciaId, dep.id))
+    .orderBy(asc(tiposRecurso.id));
+
+  const tipoIds = tipos.map((t) => t.id);
+  const rows =
+    tipoIds.length === 0
+      ? []
+      : await db
+          .select({
+            id: recursos.id,
+            qr: recursos.qr,
+            tipoId: recursos.tipoId,
+            nombre: recursos.nombre,
+            descripcion: recursos.descripcion,
+            fotoUrl: recursos.fotoUrl,
+            disponible: recursos.disponible,
+          })
+          .from(recursos)
+          .where(inArray(recursos.tipoId, tipoIds))
+          .orderBy(asc(recursos.id));
 
   const [user] = await db
     .select({ cedula: users.cedula, telefono: users.telefono, firmaUrl: users.firmaUrl })
@@ -37,9 +65,9 @@ export default async function RecursosDependenciaPage({
 
   return (
     <InventarioView
-      mode={session.rol === "superadmin" ? "admin" : "view"}
-      initialTipos={MOCK_TIPOS}
-      initialRecursos={MOCK_RECURSOS}
+      mode="view"
+      initialTipos={tipos}
+      initialRecursos={rows}
       dependenciaNombre={dep.nombre}
       perfilCompleto={Boolean(user?.cedula && user?.telefono && user?.firmaUrl)}
       solicitudesPendientesInicial={pendientes.map((p) => p.recursoId)}

@@ -55,6 +55,7 @@ Stack: Next.js 16 (App Router) + Drizzle ORM + postgres-js + jose (JWT) + Vercel
 - Docker Postgres 16 `inventario_postgres` en puerto **5433** — el 5432 lo ocupa `postgres_db` (Django, no tocar). `docker compose up -d` lo levanta; volumen conserva datos.
 - Docker Desktop está instalado per-user: `$env:LOCALAPPDATA\Programs\DockerDesktop\Docker Desktop.exe`.
 - `DATABASE_URL` local apunta a `:5433`. Nube (Neon) pendiente: URL pooled para la app, directa para migraciones.
+- Zona horaria `America/Bogota` a nivel DB (`ALTER DATABASE inventario SET timezone TO 'America/Bogota'`): los `timestamptz` se guardan en UTC pero `now()`/`::date`/checks usan fecha Colombia. Repetir el `ALTER` al crear la nube. El "hoy" del servidor se calcula además con `hoyBogota()` (`src/lib/recursos.ts`), no con la TZ del host.
 
 ## Drizzle (`src/db/`)
 - Schema partido: `schema/enums.ts`, `schema/auth.ts` (users uuid + dependencias), `schema/inventario.ts`, `schema/prestamos.ts`. Barrel en `schema.ts`, cliente en `index.ts` (`max: 1`, pensado para serverless).

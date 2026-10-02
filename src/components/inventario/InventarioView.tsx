@@ -18,6 +18,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { RecursoCard } from "./RecursoCard";
 import { RecursoModal, type RecursoFormData } from "./RecursoModal";
 import { SolicitudModal } from "./SolicitudModal";
+import { toISODate } from "@/lib/recursos";
 import type {
   FiltroDisponibilidad,
   InventarioMode,
@@ -62,6 +63,12 @@ export function InventarioView({
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
   const [deleting, setDeleting] = useState<Recurso | null>(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [cascadeInfo, setCascadeInfo] = useState<{
+    recurso: Recurso;
+    counts: { solicitudes: number; prestamos: number };
+  } | null>(null);
+  const [cascadeConfirm, setCascadeConfirm] = useState(false);
 
   const [solicitando, setSolicitando] = useState<Recurso | null>(null);
   const [solicitudSaving, setSolicitudSaving] = useState(false);
@@ -89,51 +96,138 @@ export function InventarioView({
 
   const visibles = tiposVisibles.reduce((n, t) => n + t.recursos.length, 0);
 
-  // Mock: todo es estado local hasta conectar el backend real.
-  function handleSave(data: RecursoFormData, file: File | null) {
+  async function readError(res: Response): Promise<string> {
+    try {
+      const body = await res.json();
+      return typeof body.error === "string" ? body.error : "Operación fallida.";
+    } catch {
+      return "Operación fallida.";
+    }
+  }
+
+  function applyTipoChanges(body: { tipo?: TipoRecurso; tiposEliminados?: number[] }) {
+    if (body.tipo) {
+      setTipos((prev) => (prev.some((t) => t.id === body.tipo!.id) ? prev : [...prev, body.tipo!]));
+    }
+    if (body.tiposEliminados && body.tiposEliminados.length > 0) {
+      setTipos((prev) => prev.filter((t) => !body.tiposEliminados!.includes(t.id)));
+    }
+  }
+
+  async function handleSave(data: RecursoFormData, file: File | null) {
     setSaving(true);
     setFormError("");
-    let tipoId = data.tipoId;
-    if (tipoId === null && data.nuevoTipo) {
-      const nextTipoId = Math.max(0, ...tipos.map((t) => t.id)) + 1;
-      setTipos((prev) => [
-        ...prev,
+    try {
+      let fotoUrl = data.fotoUrl;
+      if (file) {
+        const form = new FormData();
+        form.set("file", file);
+        form.set("folder", "recursos");
+        form.set("kind", "foto");
+        const up = await fetch("/api/upload", { method: "POST", body: form });
+        if (!up.ok) {
+          setFormError(await readError(up));
+          return;
+        }
+        fotoUrl = (await up.json()).url as string;
+      }
+      const res = await fetch(
+        editing ? `/api/recursos/${editing.id}` : "/api/recursos",
         {
-          id: nextTipoId,
-          nombre: data.nuevoTipo as string,
-          dependenciaId: initialTipos[0]?.dependenciaId ?? 0,
+          method: editing ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...data, fotoUrl }),
         },
-      ]);
-      tipoId = nextTipoId;
+      );
+      if (!res.ok) {
+        setFormError(await readError(res));
+        return;
+      }
+      const body = await res.json();
+      const row = body.recurso as Recurso;
+      setRecursos((prev) =>
+        editing ? prev.map((r) => (r.id === editing.id ? row : r)) : [...prev, row],
+      );
+      applyTipoChanges(body);
+      setModalOpen(false);
+      setEditing(null);
+    } catch {
+      setFormError("No se pudo guardar el recurso.");
+    } finally {
+      setSaving(false);
     }
-    const fotoUrl = file ? URL.createObjectURL(file) : data.fotoUrl;
-    if (editing) {
-      const row: Recurso = { ...editing, ...data, tipoId: tipoId as number, fotoUrl };
-      setRecursos((prev) => prev.map((r) => (r.id === editing.id ? row : r)));
-    } else {
-      const nextId = Math.max(0, ...recursos.map((r) => r.id)) + 1;
-      setRecursos((prev) => [
-        ...prev,
-        { id: nextId, ...data, tipoId: tipoId as number, fotoUrl, disponible: true },
-      ]);
-    }
-    setSaving(false);
-    setModalOpen(false);
-    setEditing(null);
   }
 
-  function handleDelete() {
+  async function runDelete(id: number, cascade: boolean) {
+    const res = await fetch(`/api/recursos/${id}${cascade ? "?cascade=true" : ""}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      const body = await res.json();
+      setRecursos((prev) => prev.filter((r) => r.id !== id));
+      applyTipoChanges(body);
+      setDeleting(null);
+      setCascadeInfo(null);
+      setCascadeConfirm(false);
+      return;
+    }
+    if (res.status === 409 && !cascade) {
+      try {
+        const body = await res.json();
+        if (body.counts && deleting) {
+          setDeleting(null);
+          setCascadeInfo({ recurso: deleting, counts: body.counts });
+          return;
+        }
+      } catch {
+        // cae al error genérico
+      }
+    }
+    setDeleteError(await readError(res));
+  }
+
+  async function handleDelete() {
     if (!deleting) return;
-    setRecursos((prev) => prev.filter((r) => r.id !== deleting.id));
-    setDeleting(null);
+    setDeleteError("");
+    try {
+      await runDelete(deleting.id, false);
+    } catch {
+      setDeleteError("No se pudo eliminar el recurso.");
+    }
   }
 
-  function handleConfirmSolicitud(recurso: Recurso) {
+  async function handleCascadeConfirm() {
+    if (!cascadeInfo) return;
+    setDeleteError("");
+    try {
+      await runDelete(cascadeInfo.recurso.id, true);
+    } catch {
+      setDeleteError("No se pudo eliminar el recurso.");
+    }
+  }
+
+  async function handleConfirmSolicitud(recurso: Recurso, fecha: Date) {
     setSolicitudSaving(true);
     setSolicitudError("");
-    setSolicitudesPendientes((prev) => (prev.includes(recurso.id) ? prev : [...prev, recurso.id]));
-    setSolicitudSaving(false);
-    setSolicitando(null);
+    try {
+      const res = await fetch("/api/solicitudes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recursoId: recurso.id, fechaDevolucion: toISODate(fecha) }),
+      });
+      if (!res.ok) {
+        setSolicitudError(await readError(res));
+        return;
+      }
+      setSolicitudesPendientes((prev) =>
+        prev.includes(recurso.id) ? prev : [...prev, recurso.id],
+      );
+      setSolicitando(null);
+    } catch {
+      setSolicitudError("No se pudo crear la solicitud.");
+    } finally {
+      setSolicitudSaving(false);
+    }
   }
 
   if (mode === "admin" && dependenciaNombre === null) {
@@ -232,7 +326,10 @@ export function InventarioView({
                         setFormError("");
                         setModalOpen(true);
                       }}
-                      onDelete={(rec) => setDeleting(rec)}
+                      onDelete={(rec) => {
+                        setDeleting(rec);
+                        setDeleteError("");
+                      }}
                       onSolicitar={(rec) => {
                         setSolicitando(rec);
                         setSolicitudError("");
@@ -267,15 +364,83 @@ export function InventarioView({
           <DialogHeader>
             <DialogTitle>Eliminar recurso</DialogTitle>
             <DialogDescription>
-              ¿Eliminar &laquo;{deleting?.nombre}&raquo; ({deleting?.qr})? Se quitará del inventario.
+              ¿Eliminar &laquo;{deleting?.nombre}&raquo; ({deleting?.qr})? Se eliminará por completo de
+              la base de datos.
             </DialogDescription>
           </DialogHeader>
+          {deleteError && <p className="text-sm font-medium text-red-600">{deleteError}</p>}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleting(null)}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeleting(null);
+                setDeleteError("");
+              }}
+            >
               Cancelar
             </Button>
             <Button onClick={handleDelete} className="bg-red-600 text-white hover:bg-red-700">
               Eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cascadeInfo !== null && !cascadeConfirm} onOpenChange={(v) => !v && setCascadeInfo(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Recurso con registros asociados</DialogTitle>
+            <DialogDescription>
+              Este recurso tiene {cascadeInfo?.counts.solicitudes}{" "}
+              {cascadeInfo?.counts.solicitudes === 1 ? "solicitud asociada" : "solicitudes asociadas"} y{" "}
+              {cascadeInfo?.counts.prestamos}{" "}
+              {cascadeInfo?.counts.prestamos === 1 ? "préstamo asociado" : "préstamos asociados"}.
+              ¿Estás seguro de eliminar este recurso?
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && <p className="text-sm font-medium text-red-600">{deleteError}</p>}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCascadeInfo(null);
+                setDeleteError("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => setCascadeConfirm(true)}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Continuar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={cascadeConfirm} onOpenChange={(v) => !v && setCascadeConfirm(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmar eliminación definitiva</DialogTitle>
+            <DialogDescription>
+              Se eliminarán {cascadeInfo ? cascadeInfo.counts.solicitudes + cascadeInfo.counts.prestamos : 0}{" "}
+              registros asociados a este recurso. ¿Estás seguro de eliminar este recurso?
+            </DialogDescription>
+          </DialogHeader>
+          {deleteError && <p className="text-sm font-medium text-red-600">{deleteError}</p>}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setCascadeConfirm(false);
+                setDeleteError("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button onClick={handleCascadeConfirm} className="bg-red-600 text-white hover:bg-red-700">
+              Eliminar todo
             </Button>
           </DialogFooter>
         </DialogContent>

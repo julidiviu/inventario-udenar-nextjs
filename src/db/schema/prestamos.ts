@@ -75,7 +75,6 @@ export const prestamos = pgTable(
     fechaDevolucionReal: timestamp("fecha_devolucion_real", {
       withTimezone: true,
     }),
-    firmadoUrl: text("firmado_url"),
     contratoPrestamoUrl: text("contrato_prestamo_url"),
     devuelto: boolean("devuelto").notNull().default(false),
   },

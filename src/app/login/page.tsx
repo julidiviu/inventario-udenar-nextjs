@@ -752,7 +752,7 @@ export default function LoginPage() {
             <span className="font-semibold text-stone-600">© 2025</span> Universidad de Nariño · Todos los derechos reservados.
           </p>
           <p>
-            Versión <span className="font-semibold text-stone-600">1.0.0</span>
+            Versión <span className="font-semibold text-stone-600">2.0.0</span>
           </p>
         </footer>
       </main>

@@ -1,5 +1,6 @@
 import {
   boolean,
+  check,
   integer,
   pgTable,
   serial,
@@ -8,7 +9,7 @@ import {
   uniqueIndex,
   varchar,
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { dependencias } from "./auth";
 
 export const tiposRecurso = pgTable(
@@ -35,7 +36,9 @@ export const tiposRecurso = pgTable(
   ],
 );
 
-export const recursos = pgTable("recursos", {
+export const recursos = pgTable(
+  "recursos",
+  {
   id: serial("id").primaryKey(),
   // QR institucional manual, obligatorio y UNIQUE (no es PK)
   qr: text("qr").notNull().unique(),
@@ -57,7 +60,13 @@ export const recursos = pgTable("recursos", {
     .defaultNow()
     .$onUpdate(() => new Date()),
   deletedAt: timestamp("deleted_at", { withTimezone: true }),
-});
+},
+  (table) => [
+    // QR de negocio: string numérico de máximo 8 dígitos (espejo de QR_RE en app).
+    // Borrado físico aprobado: el UNIQUE global no bloquea reutilización.
+    check("recursos_qr_check", sql`${table.qr} ~ '^[0-9]{1,8}$'`),
+  ],
+);
 
 export const tiposRecursoRelations = relations(tiposRecurso, ({ one, many }) => ({
   dependencia: one(dependencias, {

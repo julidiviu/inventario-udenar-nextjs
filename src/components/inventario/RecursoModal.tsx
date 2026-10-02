@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { QR_RE, RECURSO_DESCRIPCION_MAX, RECURSO_NOMBRE_MAX, TIPO_NOMBRE_MAX } from "@/lib/recursos";
 import type { Recurso, TipoRecurso } from "./types";
 
 export const OTRO_TIPO_VALUE = "__otro__";
@@ -58,24 +59,24 @@ export function RecursoModal({ open, initial, tipos, saving, serverError, onClos
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!nombre.trim()) {
-      setError("El nombre es requerido.");
+    if (!nombre.trim() || nombre.trim().length > RECURSO_NOMBRE_MAX) {
+      setError("El nombre es requerido (máximo 100 caracteres).");
       return;
     }
-    if (!qr.trim()) {
-      setError("El código QR es requerido.");
+    if (!QR_RE.test(qr.trim())) {
+      setError("El código QR debe ser numérico de máximo 8 dígitos.");
       return;
     }
     if (!tipoValue) {
       setError("Selecciona el tipo de recurso.");
       return;
     }
-    if (tipoValue === OTRO_TIPO_VALUE && !nuevoTipo.trim()) {
-      setError("Especifica el nombre del nuevo tipo.");
+    if (tipoValue === OTRO_TIPO_VALUE && (!nuevoTipo.trim() || nuevoTipo.trim().length > TIPO_NOMBRE_MAX)) {
+      setError("Especifica el nombre del nuevo tipo (máximo 100 caracteres).");
       return;
     }
-    if (!descripcion.trim()) {
-      setError("La descripción es requerida.");
+    if (!descripcion.trim() || descripcion.trim().length > RECURSO_DESCRIPCION_MAX) {
+      setError("La descripción es requerida (máximo 800 caracteres).");
       return;
     }
     setError("");
@@ -120,7 +121,7 @@ export function RecursoModal({ open, initial, tipos, saving, serverError, onClos
               id="rec-qr"
               value={qr}
               onChange={(e) => setQr(e.target.value)}
-              placeholder="Ej. QR-001"
+              placeholder="Ej. 12345678"
               required
             />
           </div>
