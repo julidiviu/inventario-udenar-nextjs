@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { recursos, solicitudesPrestamo, users } from "@/db/schema";
+import { dependencias, notificaciones, recursos, solicitudesPrestamo, tiposRecurso, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { dbErrorCause } from "@/lib/dependencias";
 import { validateSolicitudInput } from "@/lib/recursos";
@@ -26,7 +26,14 @@ export async function POST(req: Request) {
   }
 
   const [user] = await db
-    .select({ cedula: users.cedula, telefono: users.telefono, firmaUrl: users.firmaUrl })
+    .select({
+      cedula: users.cedula,
+      telefono: users.telefono,
+      firmaUrl: users.firmaUrl,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      codigo: users.codigo,
+    })
     .from(users)
     .where(eq(users.id, session.sub));
   if (!user?.cedula || !user?.telefono || !user?.firmaUrl) {
@@ -37,7 +44,7 @@ export async function POST(req: Request) {
   }
 
   const [recurso] = await db
-    .select({ id: recursos.id, disponible: recursos.disponible })
+    .select({ id: recursos.id, nombre: recursos.nombre, tipoId: recursos.tipoId, disponible: recursos.disponible })
     .from(recursos)
     .where(eq(recursos.id, valid.data.recursoId));
   if (!recurso) return NextResponse.json({ error: "Recurso no encontrado." }, { status: 404 });
@@ -45,15 +52,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "El recurso no está disponible." }, { status: 409 });
   }
 
+  // Admin de la dependencia (vía tipo): si no hay asignado, la solicitud se crea sin notificación.
+  const [tipo] = await db
+    .select({ dependenciaId: tiposRecurso.dependenciaId })
+    .from(tiposRecurso)
+    .where(eq(tiposRecurso.id, recurso.tipoId));
+  const [dep] = tipo
+    ? await db
+        .select({ administradorId: dependencias.administradorId })
+        .from(dependencias)
+        .where(and(eq(dependencias.id, tipo.dependenciaId), isNull(dependencias.deletedAt)))
+    : [];
+  const adminId = dep?.administradorId ?? null;
+
+  const solicitante = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || `Cód. ${user.codigo}`;
+
   try {
-    const [row] = await db
-      .insert(solicitudesPrestamo)
-      .values({
-        usuarioId: session.sub,
-        recursoId: valid.data.recursoId,
-        fechaDevolucion: valid.data.fechaDevolucion,
-      })
-      .returning({ id: solicitudesPrestamo.id, recursoId: solicitudesPrestamo.recursoId });
+    const [row] = await db.transaction(async (tx) => {
+      const [s] = await tx
+        .insert(solicitudesPrestamo)
+        .values({
+          usuarioId: session.sub,
+          recursoId: valid.data.recursoId,
+          fechaDevolucion: valid.data.fechaDevolucion,
+        })
+        .returning({ id: solicitudesPrestamo.id, recursoId: solicitudesPrestamo.recursoId });
+      if (adminId) {
+        await tx.insert(notificaciones).values({
+          usuarioId: adminId,
+          tipo: "SOLICITUD",
+          mensaje: `El usuario ${solicitante} ha solicitado el préstamo del recurso '${recurso.nombre}'.`,
+        });
+      }
+      return [s];
+    });
     return NextResponse.json({ ok: true, solicitud: row }, { status: 201 });
   } catch (err) {
     if (dbErrorCause(err).code === "23505") {

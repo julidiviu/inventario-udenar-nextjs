@@ -1,0 +1,1 @@
+ALTER TABLE "solicitudes_prestamo" DROP COLUMN "contrato_solicitud_url";

@@ -173,7 +173,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   const [solicitudes, prestamosRows] = await Promise.all([
     db
-      .select({ id: solicitudesPrestamo.id, contratoUrl: solicitudesPrestamo.contratoSolicitudUrl })
+      .select({ id: solicitudesPrestamo.id })
       .from(solicitudesPrestamo)
       .where(eq(solicitudesPrestamo.recursoId, id)),
     db
@@ -195,7 +195,6 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
   const blobUrls = [
     current.fotoUrl,
-    ...solicitudes.map((s) => s.contratoUrl),
     ...prestamosRows.map((p) => p.contratoUrl),
   ].filter((u): u is string => typeof u === "string" && isBlobUrl(u));
 

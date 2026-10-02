@@ -8,7 +8,6 @@ const FOLDERS = new Set([
   "recursos",
   "firmas",
   "contratos_prestamo",
-  "contratos_solicitud",
 ]);
 
 /**

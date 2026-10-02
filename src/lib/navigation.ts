@@ -25,12 +25,11 @@ const adminExtra: NavItem[] = [
   { label: "Inventario", href: "/inventario" },
   {
     label: "Solicitudes de Préstamos",
-    href: FUTURE,
+    href: "/solicitudes?estado=todas",
     children: [
-      { label: "Pendientes", href: FUTURE },
-      { label: "Aprobadas", href: FUTURE },
-      { label: "Rechazadas", href: FUTURE },
-      { label: "Todas", href: FUTURE },
+      { label: "Pendientes", href: "/solicitudes?estado=pendiente" },
+      { label: "Aprobadas", href: "/solicitudes?estado=aprobada" },
+      { label: "Rechazadas", href: "/solicitudes?estado=rechazada" },
     ],
   },
   { label: "Préstamos", href: FUTURE },
@@ -42,11 +41,11 @@ const prestatarioExtra: NavItem[] = [
   { label: "Solicitar Préstamo", href: "/dependencias" },
   {
     label: "Mis Solicitudes",
-    href: FUTURE,
+    href: "/mis-solicitudes?estado=todas",
     children: [
-      { label: "Pendientes", href: FUTURE },
-      { label: "Aprobadas", href: FUTURE },
-      { label: "Rechazadas", href: FUTURE },
+      { label: "Pendientes", href: "/mis-solicitudes?estado=pendiente" },
+      { label: "Aprobadas", href: "/mis-solicitudes?estado=aprobada" },
+      { label: "Rechazadas", href: "/mis-solicitudes?estado=rechazada" },
     ],
   },
   { label: "Mis Préstamos", href: FUTURE },

@@ -33,8 +33,6 @@ export const solicitudesPrestamo = pgTable(
     // Fecha programada pedida por el estudiante
     fechaDevolucion: date("fecha_devolucion").notNull(),
     estado: estadoSolicitudEnum("estado").notNull().default("pendiente"),
-    // URL del PDF en Vercel Blob
-    contratoSolicitudUrl: text("contrato_solicitud_url"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -123,6 +121,11 @@ export const solicitudesPrestamoRelations = relations(
     recurso: one(recursos, {
       fields: [solicitudesPrestamo.recursoId],
       references: [recursos.id],
+    }),
+    // Inverso 1-a-1 de prestamos.solicitudId: el contrato vive en el préstamo.
+    prestamo: one(prestamos, {
+      fields: [solicitudesPrestamo.id],
+      references: [prestamos.solicitudId],
     }),
   }),
 );

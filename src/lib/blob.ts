@@ -12,8 +12,7 @@ type BlobFolder =
   | "usuarios/firmas"
   | "recursos"
   | "firmas"
-  | "contratos_prestamo"
-  | "contratos_solicitud";
+  | "contratos_prestamo";
 
 function assertEnv() {
   if (!process.env.BLOB_READ_WRITE_TOKEN) {
