@@ -77,6 +77,13 @@ Stack: Next.js 16 (App Router) + Drizzle ORM + postgres-js + jose (JWT) + Vercel
 - Validar antes del `put` (tipo/tamaño/carpeta). Allowlist de prefijos provisional (espejo de Django); la organización final se decide por formulario, no globalmente.
 - Flujo en 2 pasos: `POST /api/upload` → `{url}` → API de negocio guarda el `url`. Si el `insert` falla, borrar huérfano best-effort; si el `del(previa)` falla tras `update`, revertir DB al valor previo + borrar la nueva. Solo borrar si `isBlobUrl()`.
 
+## Tema claro/oscuro (sin dependencias)
+- Fuente de verdad única: la clase `.dark` en `<html>`. Nunca leer `localStorage` directo en el render; el snapshot del toggle lee solo la clase.
+- Script pre-paint con `<script>` plano y bloqueante en el layout raíz (constante en `src/lib/theme.ts`). Prohibido `next/script` para esto: difiere la ejecución y causa flash de tema incorrecto.
+- `globals.css`: `--background`/`--foreground` y `color-scheme` bajo `.dark`. Prohibido `@media (prefers-color-scheme)` para el fondo: el body sigue al tema de la app, no al del SO.
+- Navegación interna siempre con `next/link`, nunca `<a href>`: la recarga completa resetea el estado del documento (tema incluido).
+- `ThemeToggle`: mantener el guard `mounted` (SSR y primer render idénticos). No cambiar el patrón sin revisar hidratación.
+
 ## APIs (`/api/*`)
 - Respuesta: `{ok:true,...}` vs `{error, field?}`. 400+field validación, 409 duplicado/inmutable, 401 genérico. Mapear `23505→409` (`uniqueField`), `23514→400` vía `dbErrorCause().cause`.
 - Validación espejo cliente+servidor con constantes en `src/lib/*`; `""→null` con `emptyToNull`.
