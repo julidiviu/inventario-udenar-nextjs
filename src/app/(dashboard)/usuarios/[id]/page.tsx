@@ -55,7 +55,7 @@ export default async function UsuarioDetallePage({ params }: { params: Promise<{
             <p className="mb-2 text-sm font-semibold text-brand-700 dark:text-brand-100">Firma</p>
             {firmaUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={firmaUrl} alt={`Firma de ${nombre}`} className="mx-auto max-h-24 bg-white dark:bg-zinc-950" />
+              <img src={firmaUrl} alt={`Firma de ${nombre}`} className="mx-auto max-h-24 rounded-[8px] bg-white p-1 dark:bg-zinc-200" />
             ) : (
               <p className="text-sm text-zinc-500 dark:text-zinc-400">Sin firma registrada.</p>
             )}

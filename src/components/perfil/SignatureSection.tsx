@@ -44,7 +44,7 @@ export function SignatureSection({
         Firma registrada:
       </p>
 
-      <div className="mx-auto mt-3 flex min-h-[110px] w-full max-w-[260px] items-center justify-center rounded-[10px] border border-zinc-100 bg-white p-3 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
+      <div className="mx-auto mt-3 flex min-h-[110px] w-full max-w-[260px] items-center justify-center rounded-[10px] border border-zinc-100 bg-white p-3 shadow-sm dark:border-zinc-700 dark:bg-zinc-200">
         {preview ? (
           <Image
             src={preview}
@@ -55,7 +55,7 @@ export function SignatureSection({
             unoptimized
           />
         ) : (
-          <p className="text-center text-xs text-zinc-400">Sin firma registrada</p>
+          <p className="text-center text-xs text-zinc-400 dark:text-zinc-500">Sin firma registrada</p>
         )}
       </div>
 
