@@ -1,9 +1,10 @@
 import { redirect } from "next/navigation";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { dependencias, prestamos, recursos, solicitudesPrestamo, tiposRecurso, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { FILTRO_LABEL, filtroAEstadoDB, parseFiltroEstado } from "@/lib/solicitudes";
+import { FILAS_POR_PAGINA, escapeIlike, paginaOffset, parsePagina, parseQuery } from "@/lib/paginacion";
 import { SolicitudesView, type SolicitudRow } from "@/components/solicitudes/SolicitudesView";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -11,14 +12,17 @@ import { PageHeader } from "@/components/ui/PageHeader";
 export default async function SolicitudesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; pagina?: string; q?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.rol !== "admin") redirect("/dashboard");
 
-  const filtro = parseFiltroEstado((await searchParams).estado);
+  const params = await searchParams;
+  const filtro = parseFiltroEstado(params.estado);
   const estadoDB = filtroAEstadoDB(filtro);
+  const q = parseQuery(params.q);
+  let pagina = parsePagina(params.pagina);
 
   const [dep] = await db
     .select({ id: dependencias.id })
@@ -36,6 +40,33 @@ export default async function SolicitudesPage({
       </div>
     );
   }
+
+  const conds = [eq(tiposRecurso.dependenciaId, dep.id)];
+  if (estadoDB) conds.push(eq(solicitudesPrestamo.estado, estadoDB));
+  if (q) {
+    const patron = `%${escapeIlike(q)}%`;
+    conds.push(
+      or(
+        ilike(recursos.qr, patron),
+        ilike(recursos.nombre, patron),
+        ilike(users.firstName, patron),
+        ilike(users.lastName, patron),
+        ilike(users.codigo, patron),
+        ilike(sql`${users.firstName} || ' ' || ${users.lastName}`, patron),
+      )!,
+    );
+  }
+  const where = and(...conds);
+
+  const [{ n: total }] = await db
+    .select({ n: count() })
+    .from(solicitudesPrestamo)
+    .innerJoin(recursos, eq(solicitudesPrestamo.recursoId, recursos.id))
+    .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
+    .innerJoin(users, eq(solicitudesPrestamo.usuarioId, users.id))
+    .where(where);
+  const totalPaginas = Math.max(1, Math.ceil(total / FILAS_POR_PAGINA));
+  if (pagina > totalPaginas) pagina = totalPaginas;
 
   const rows = await db
     .select({
@@ -58,12 +89,10 @@ export default async function SolicitudesPage({
     .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
     .innerJoin(users, eq(solicitudesPrestamo.usuarioId, users.id))
     .leftJoin(prestamos, eq(prestamos.solicitudId, solicitudesPrestamo.id))
-    .where(
-      estadoDB
-        ? and(eq(tiposRecurso.dependenciaId, dep.id), eq(solicitudesPrestamo.estado, estadoDB))
-        : eq(tiposRecurso.dependenciaId, dep.id),
-    )
-    .orderBy(desc(solicitudesPrestamo.id));
+    .where(where)
+    .orderBy(desc(solicitudesPrestamo.id))
+    .limit(FILAS_POR_PAGINA)
+    .offset(paginaOffset(pagina));
 
   const initialData: SolicitudRow[] = rows.map((r) => ({
     solicitudId: r.solicitudId,
@@ -86,7 +115,11 @@ export default async function SolicitudesPage({
       key={filtro}
       scope="dependencia"
       estadoInicial={filtro}
+      qInicial={q}
       initialData={initialData}
+      pagina={pagina}
+      totalPaginas={totalPaginas}
+      total={total}
       titulo={`Solicitudes de Préstamo — ${FILTRO_LABEL[filtro]}`}
     />
   );

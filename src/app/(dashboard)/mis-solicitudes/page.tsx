@@ -1,22 +1,50 @@
 import { redirect } from "next/navigation";
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { dependencias, prestamos, recursos, solicitudesPrestamo, tiposRecurso } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { FILTRO_LABEL, filtroAEstadoDB, parseFiltroEstado } from "@/lib/solicitudes";
+import { FILAS_POR_PAGINA, escapeIlike, paginaOffset, parsePagina, parseQuery } from "@/lib/paginacion";
 import { SolicitudesView, type SolicitudRow } from "@/components/solicitudes/SolicitudesView";
 
 export default async function MisSolicitudesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; pagina?: string; q?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
   if (session.rol !== "estudiante" && session.rol !== "profesor") redirect("/dashboard");
 
-  const filtro = parseFiltroEstado((await searchParams).estado);
+  const params = await searchParams;
+  const filtro = parseFiltroEstado(params.estado);
   const estadoDB = filtroAEstadoDB(filtro);
+  const q = parseQuery(params.q);
+  let pagina = parsePagina(params.pagina);
+
+  const conds = [eq(solicitudesPrestamo.usuarioId, session.sub)];
+  if (estadoDB) conds.push(eq(solicitudesPrestamo.estado, estadoDB));
+  if (q) {
+    const patron = `%${escapeIlike(q)}%`;
+    conds.push(
+      or(
+        ilike(recursos.qr, patron),
+        ilike(recursos.nombre, patron),
+        ilike(dependencias.nombre, patron),
+      )!,
+    );
+  }
+  const where = and(...conds);
+
+  const [{ n: total }] = await db
+    .select({ n: count() })
+    .from(solicitudesPrestamo)
+    .innerJoin(recursos, eq(solicitudesPrestamo.recursoId, recursos.id))
+    .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
+    .innerJoin(dependencias, eq(tiposRecurso.dependenciaId, dependencias.id))
+    .where(where);
+  const totalPaginas = Math.max(1, Math.ceil(total / FILAS_POR_PAGINA));
+  if (pagina > totalPaginas) pagina = totalPaginas;
 
   const rows = await db
     .select({
@@ -37,12 +65,10 @@ export default async function MisSolicitudesPage({
     .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
     .innerJoin(dependencias, eq(tiposRecurso.dependenciaId, dependencias.id))
     .leftJoin(prestamos, eq(prestamos.solicitudId, solicitudesPrestamo.id))
-    .where(
-      estadoDB
-        ? and(eq(solicitudesPrestamo.usuarioId, session.sub), eq(solicitudesPrestamo.estado, estadoDB))
-        : eq(solicitudesPrestamo.usuarioId, session.sub),
-    )
-    .orderBy(desc(solicitudesPrestamo.id));
+    .where(where)
+    .orderBy(desc(solicitudesPrestamo.id))
+    .limit(FILAS_POR_PAGINA)
+    .offset(paginaOffset(pagina));
 
   const initialData: SolicitudRow[] = rows.map((r) => ({
     ...r,
@@ -56,7 +82,11 @@ export default async function MisSolicitudesPage({
       key={filtro}
       scope="propias"
       estadoInicial={filtro}
+      qInicial={q}
       initialData={initialData}
+      pagina={pagina}
+      totalPaginas={totalPaginas}
+      total={total}
       titulo={`Mis Solicitudes — ${FILTRO_LABEL[filtro]}`}
     />
   );

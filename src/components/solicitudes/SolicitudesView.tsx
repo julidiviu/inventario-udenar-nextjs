@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,9 +15,11 @@ import {
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Paginador } from "@/components/ui/Paginador";
 import { formatFechaCO } from "@/lib/dates";
 import type { AccionSolicitud, EstadoSolicitud, FiltroEstado } from "@/lib/solicitudes";
 import { FILTRO_LABEL } from "@/lib/solicitudes";
+import { FILAS_POR_PAGINA, hrefConParams } from "@/lib/paginacion";
 
 export interface SolicitudRow {
   /** Key interno, no visible. */
@@ -46,7 +49,13 @@ export type SolicitudesScope = "propias" | "dependencia";
 interface SolicitudesViewProps {
   scope: SolicitudesScope;
   estadoInicial: FiltroEstado;
+  /** ?q= actual (la búsqueda vive en el servidor, el input solo la edita). */
+  qInicial: string;
+  /** Solo la página actual (máx FILAS_POR_PAGINA filas). */
   initialData: SolicitudRow[];
+  pagina: number;
+  totalPaginas: number;
+  total: number;
   titulo: string;
 }
 
@@ -161,27 +170,41 @@ const CONFIRM_TEXTO: Record<AccionSolicitud | "cancelar", { titulo: string; desc
   },
 };
 
-export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: SolicitudesViewProps) {
-  const [filas, setFilas] = useState<SolicitudRow[]>(initialData);
-  const [query, setQuery] = useState("");
+export function SolicitudesView({
+  scope,
+  estadoInicial,
+  qInicial,
+  initialData,
+  pagina,
+  totalPaginas,
+  total,
+  titulo,
+}: SolicitudesViewProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [query, setQuery] = useState(qInicial);
+  const [prevQ, setPrevQ] = useState(qInicial);
+  // Sincroniza si ?q= cambia por navegación (atrás/adelante) sin remontar la vista.
+  if (qInicial !== prevQ) {
+    setPrevQ(qInicial);
+    setQuery(qInicial);
+  }
   const [confirm, setConfirm] = useState<Confirmacion>(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
 
-  // ponytail: filtro O(n) en cliente, suficiente hasta ~500 filas; luego búsqueda en servidor.
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return filas;
-    return filas.filter((r) =>
-      scope === "dependencia"
-        ? r.qr.toLowerCase().includes(q) ||
-          r.recursoNombre.toLowerCase().includes(q) ||
-          r.usuarioNombre.toLowerCase().includes(q)
-        : r.qr.toLowerCase().includes(q) ||
-          r.recursoNombre.toLowerCase().includes(q) ||
-          r.dependenciaNombre.toLowerCase().includes(q),
-    );
-  }, [filas, query, scope]);
+  // Búsqueda en servidor con debounce: actualiza ?q= y vuelve a página 1.
+  useEffect(() => {
+    const q = query.trim();
+    if (q === qInicial) return;
+    const t = setTimeout(() => {
+      router.replace(hrefConParams(pathname, { estado: estadoInicial, pagina: 1, q }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [query, qInicial, estadoInicial, pathname, router]);
+
+  const inicio = total === 0 ? 0 : (pagina - 1) * FILAS_POR_PAGINA + 1;
+  const fin = Math.min(pagina * FILAS_POR_PAGINA, total);
 
   async function readError(res: Response): Promise<string> {
     try {
@@ -192,14 +215,7 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
     }
   }
 
-  /** Tras mutar: en filtro por estado la fila sale de la lista; en "todas" actualiza el badge. */
-  function aplicarCambio(id: number, estado: EstadoSolicitud | null) {
-    setFilas((prev) =>
-      estado === null || estadoInicial !== "todas"
-        ? prev.filter((r) => r.solicitudId !== id)
-        : prev.map((r) => (r.solicitudId === id ? { ...r, estado } : r)),
-    );
-  }
+  /** Tras mutar se revalida desde el servidor: conteos y páginas siempre consistentes. */
 
   async function handleConfirm() {
     if (!confirm) return;
@@ -219,9 +235,9 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
         setActionError(await readError(res));
         return;
       }
-      const body = await res.json();
-      aplicarCambio(row.solicitudId, accion === "cancelar" ? null : (body.estado as EstadoSolicitud));
+      await res.json();
       setConfirm(null);
+      router.refresh();
     } catch {
       setActionError("No se pudo completar la operación.");
     } finally {
@@ -245,7 +261,7 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
           className="sm:max-w-sm"
         />
         <p className="rounded-[20px] border border-brand-700 bg-brand-700/5 px-4 py-1.5 text-sm font-bold whitespace-nowrap text-brand-700 dark:text-brand-100">
-          {FILTRO_LABEL[estadoInicial]} · Mostrando {rows.length} de {filas.length} solicitudes
+          {FILTRO_LABEL[estadoInicial]} · Mostrando {inicio}–{fin} de {total} solicitudes
         </p>
       </div>
 
@@ -271,7 +287,7 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {initialData.map((r) => (
                 <tr
                   key={r.solicitudId}
                   className="border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
@@ -315,14 +331,14 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
                   </td>
                 </tr>
               ))}
-              {rows.length === 0 && (
+              {initialData.length === 0 && (
                 <tr>
                   <td colSpan={7}>
                     <EmptyState
                       message={
-                        filas.length === 0
-                          ? "No hay solicitudes de préstamo registradas."
-                          : "Sin resultados para la búsqueda aplicada."
+                        qInicial
+                          ? "Sin resultados para la búsqueda aplicada."
+                          : "No hay solicitudes de préstamo registradas."
                       }
                     />
                   </td>
@@ -332,6 +348,8 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
           </table>
         </div>
       </section>
+
+      <Paginador estado={estadoInicial} q={qInicial} pagina={pagina} totalPaginas={totalPaginas} />
 
       <Dialog open={confirm !== null} onOpenChange={(v) => !v && !saving && setConfirm(null)}>
         <DialogContent>

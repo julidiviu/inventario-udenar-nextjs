@@ -1,13 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { Paginador } from "@/components/ui/Paginador";
 import { formatFechaCO } from "@/lib/dates";
 import type { FiltroPrestamo } from "@/lib/prestamos";
 import { diasHasta, FILTRO_PRESTAMO_LABEL } from "@/lib/prestamos";
+import { FILAS_POR_PAGINA, hrefConParams } from "@/lib/paginacion";
 
 export interface PrestamoRow {
   /** Key interno, no visible. */
@@ -40,7 +43,13 @@ export type PrestamosScope = "propias" | "dependencia";
 interface PrestamosViewProps {
   scope: PrestamosScope;
   estadoInicial: FiltroPrestamo;
+  /** ?q= actual (la búsqueda vive en el servidor, el input solo la edita). */
+  qInicial: string;
+  /** Solo la página actual (máx FILAS_POR_PAGINA filas). */
   initialData: PrestamoRow[];
+  pagina: number;
+  totalPaginas: number;
+  total: number;
   titulo: string;
 }
 
@@ -106,24 +115,38 @@ function Acciones({ row }: { row: PrestamoRow }) {
   );
 }
 
-export function PrestamosView({ scope, estadoInicial, initialData, titulo }: PrestamosViewProps) {
-  const [filas] = useState<PrestamoRow[]>(initialData);
-  const [query, setQuery] = useState("");
+export function PrestamosView({
+  scope,
+  estadoInicial,
+  qInicial,
+  initialData,
+  pagina,
+  totalPaginas,
+  total,
+  titulo,
+}: PrestamosViewProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const [query, setQuery] = useState(qInicial);
+  const [prevQ, setPrevQ] = useState(qInicial);
+  // Sincroniza si ?q= cambia por navegación (atrás/adelante) sin remontar la vista.
+  if (qInicial !== prevQ) {
+    setPrevQ(qInicial);
+    setQuery(qInicial);
+  }
 
-  // ponytail: filtro O(n) en cliente, suficiente hasta ~500 filas; luego búsqueda en servidor.
-  const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return filas;
-    return filas.filter((r) =>
-      scope === "dependencia"
-        ? r.qr.toLowerCase().includes(q) ||
-          r.recursoNombre.toLowerCase().includes(q) ||
-          r.usuarioNombre.toLowerCase().includes(q)
-        : r.qr.toLowerCase().includes(q) ||
-          r.recursoNombre.toLowerCase().includes(q) ||
-          r.dependenciaNombre.toLowerCase().includes(q),
-    );
-  }, [filas, query, scope]);
+  // Búsqueda en servidor con debounce: actualiza ?q= y vuelve a página 1.
+  useEffect(() => {
+    const q = query.trim();
+    if (q === qInicial) return;
+    const t = setTimeout(() => {
+      router.replace(hrefConParams(pathname, { estado: estadoInicial, pagina: 1, q }));
+    }, 400);
+    return () => clearTimeout(t);
+  }, [query, qInicial, estadoInicial, pathname, router]);
+
+  const inicio = total === 0 ? 0 : (pagina - 1) * FILAS_POR_PAGINA + 1;
+  const fin = Math.min(pagina * FILAS_POR_PAGINA, total);
 
   return (
     <div className="mx-auto w-full max-w-7xl rounded-[20px] bg-gradient-to-br from-white to-zinc-50 p-6 shadow-[0_25px_45px_rgba(0,0,0,0.08)] sm:p-10 dark:from-zinc-900 dark:to-zinc-950">
@@ -141,7 +164,7 @@ export function PrestamosView({ scope, estadoInicial, initialData, titulo }: Pre
           className="sm:max-w-sm"
         />
         <p className="rounded-[20px] border border-brand-700 bg-brand-700/5 px-4 py-1.5 text-sm font-bold whitespace-nowrap text-brand-700 dark:text-brand-100">
-          {FILTRO_PRESTAMO_LABEL[estadoInicial]} · Mostrando {rows.length} de {filas.length} préstamos
+          {FILTRO_PRESTAMO_LABEL[estadoInicial]} · Mostrando {inicio}–{fin} de {total} préstamos
         </p>
       </div>
 
@@ -162,7 +185,7 @@ export function PrestamosView({ scope, estadoInicial, initialData, titulo }: Pre
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {initialData.map((r) => (
                 <tr
                   key={r.prestamoId}
                   className="border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
@@ -213,14 +236,14 @@ export function PrestamosView({ scope, estadoInicial, initialData, titulo }: Pre
                   )}
                 </tr>
               ))}
-              {rows.length === 0 && (
+              {initialData.length === 0 && (
                 <tr>
                   <td colSpan={scope === "dependencia" ? 8 : 7}>
                     <EmptyState
                       message={
-                        filas.length === 0
-                          ? "No hay préstamos registrados."
-                          : "Sin resultados para la búsqueda aplicada."
+                        qInicial
+                          ? "Sin resultados para la búsqueda aplicada."
+                          : "No hay préstamos registrados."
                       }
                     />
                   </td>
@@ -230,6 +253,8 @@ export function PrestamosView({ scope, estadoInicial, initialData, titulo }: Pre
           </table>
         </div>
       </section>
+
+      <Paginador estado={estadoInicial} q={qInicial} pagina={pagina} totalPaginas={totalPaginas} />
     </div>
   );
 }
