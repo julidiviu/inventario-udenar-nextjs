@@ -5,7 +5,11 @@ import { dependencias, recursos, tiposRecurso } from "@/db/schema";
 import { InventarioView } from "@/components/inventario/InventarioView";
 import { getSession } from "@/lib/auth";
 
-export default async function InventarioPage() {
+export default async function InventarioPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tipo?: string; destacar?: string }>;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
   // Solo el admin gestiona inventario; el resto no contempla esta vista.
@@ -54,6 +58,13 @@ export default async function InventarioPage() {
       initialTipos={tipos}
       initialRecursos={rows}
       dependenciaNombre={dep?.nombre ?? null}
+      tipoAbiertoId={toId((await searchParams).tipo)}
+      destacarId={toId((await searchParams).destacar)}
     />
   );
+}
+
+function toId(raw: string | undefined): number | null {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }

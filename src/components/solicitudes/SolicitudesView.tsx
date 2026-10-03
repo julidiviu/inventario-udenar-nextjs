@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,6 +28,9 @@ export interface SolicitudRow {
   recursoNombre: string;
   /** Solo scope="dependencia". Fallback `Cód. ${codigo}` si el nombre es null. */
   usuarioNombre: string;
+  /** Internos para los links (solo dependencia), no visibles. */
+  usuarioId: string;
+  tipoId: number;
   fechaSolicitud: string;
   fechaDevolucion: string;
   estado: EstadoSolicitud;
@@ -266,8 +270,28 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
                   className="border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
                 >
                   <td className="px-3 py-2 font-medium">{r.qr}</td>
-                  <td className="px-3 py-2">{r.recursoNombre}</td>
-                  {scope === "dependencia" && <td className="px-3 py-2">{r.usuarioNombre}</td>}
+                  <td className="px-3 py-2">
+                    {scope === "dependencia" ? (
+                      <Link
+                        href={`/inventario?tipo=${r.tipoId}&destacar=${r.recursoId}`}
+                        className="font-semibold text-brand-700 underline-offset-2 hover:underline dark:text-brand-100"
+                      >
+                        {r.recursoNombre}
+                      </Link>
+                    ) : (
+                      r.recursoNombre
+                    )}
+                  </td>
+                  {scope === "dependencia" && (
+                    <td className="px-3 py-2">
+                      <Link
+                        href={`/usuarios/${r.usuarioId}`}
+                        className="font-semibold text-brand-700 underline-offset-2 hover:underline dark:text-brand-100"
+                      >
+                        {r.usuarioNombre}
+                      </Link>
+                    </td>
+                  )}
                   <td className="px-3 py-2">{formatFechaCO(r.fechaSolicitud)}</td>
                   <td className="px-3 py-2">{formatFechaCO(r.fechaDevolucion)}</td>
                   <td className="px-3 py-2">

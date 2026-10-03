@@ -42,6 +42,8 @@ export default async function MisSolicitudesPage({
   const initialData: SolicitudRow[] = rows.map((r) => ({
     ...r,
     usuarioNombre: "",
+    usuarioId: "",
+    tipoId: 0,
     fechaSolicitud: r.fechaSolicitud.toISOString(),
   }));
 

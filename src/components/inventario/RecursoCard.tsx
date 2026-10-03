@@ -10,9 +10,15 @@ interface RecursoCardProps {
   mode: InventarioMode;
   solicitudPendiente?: boolean;
   perfilCompleto?: boolean;
+  /** Deep-link desde solicitudes: anillo + scroll hasta la tarjeta. */
+  destacado?: boolean;
   onEdit?: (recurso: Recurso) => void;
   onDelete?: (recurso: Recurso) => void;
   onSolicitar?: (recurso: Recurso) => void;
+}
+
+function scrollAlVer(el: HTMLElement | null) {
+  el?.scrollIntoView({ block: "center" });
 }
 
 export function RecursoCard({
@@ -20,6 +26,7 @@ export function RecursoCard({
   mode,
   solicitudPendiente = false,
   perfilCompleto = true,
+  destacado = false,
   onEdit,
   onDelete,
   onSolicitar,
@@ -27,7 +34,11 @@ export function RecursoCard({
   const perfilIncompleto = !perfilCompleto;
 
   return (
-    <article className="group flex h-full flex-col overflow-hidden rounded-[18px] border border-zinc-100 bg-white shadow-[0_10px_25px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] dark:border-zinc-800 dark:bg-zinc-900">
+    <article
+      id={`recurso-${recurso.id}`}
+      ref={destacado ? scrollAlVer : undefined}
+      className={`group flex h-full flex-col overflow-hidden rounded-[18px] border border-zinc-100 bg-white shadow-[0_10px_25px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] dark:border-zinc-800 dark:bg-zinc-900 ${destacado ? "ring-2 ring-brand-500 ring-offset-2 dark:ring-offset-zinc-950" : ""}`}
+    >
       {recurso.fotoUrl ? (
         <div className="h-44 overflow-hidden bg-zinc-100">
           {/* eslint-disable-next-line @next/next/no-img-element */}

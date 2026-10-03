@@ -34,6 +34,9 @@ interface InventarioViewProps {
   dependenciaNombre: string | null;
   perfilCompleto?: boolean;
   solicitudesPendientesInicial?: number[];
+  /** Deep-link desde solicitudes: abre el acordeón y resalta la tarjeta (ids inválidos se ignoran). */
+  tipoAbiertoId?: number | null;
+  destacarId?: number | null;
 }
 
 const FILTROS: { value: FiltroDisponibilidad; label: string }[] = [
@@ -49,6 +52,8 @@ export function InventarioView({
   dependenciaNombre,
   perfilCompleto = true,
   solicitudesPendientesInicial = [],
+  tipoAbiertoId = null,
+  destacarId = null,
 }: InventarioViewProps) {
   const [tipos, setTipos] = useState<TipoRecurso[]>(initialTipos);
   const [recursos, setRecursos] = useState<Recurso[]>(initialRecursos);
@@ -297,7 +302,11 @@ export function InventarioView({
           }
         />
       ) : (
-        <Accordion.Root type="multiple" className="flex flex-col gap-4">
+        <Accordion.Root
+          type="multiple"
+          defaultValue={tipoAbiertoId ? [String(tipoAbiertoId)] : undefined}
+          className="flex flex-col gap-4"
+        >
           {tiposVisibles.map((t) => (
             <Accordion.Item
               key={t.id}
@@ -319,6 +328,7 @@ export function InventarioView({
                       key={r.id}
                       recurso={r}
                       mode={mode}
+                      destacado={r.id === destacarId}
                       solicitudPendiente={solicitudesPendientes.includes(r.id)}
                       perfilCompleto={perfilCompleto}
                       onEdit={(rec) => {

@@ -20,6 +20,6 @@
 
 ## Próximos Pasos
 - Módulo inventario/recursos: UI + API completas. Pendiente: probar flujo E2E con usuarios reales (crear tipo/recurso, solicitar, eliminar en cascada).
-- Campanita (`NotificacionesBell` en `Navbar` con `key` por ruta): popover propio responsive (`min(22rem,100vw-2rem)`, `70dvh`), badge `noLeidas` (oculto en 0, "9+"), `GET /api/notificaciones?before=&limit=4` (cursor keyset + `hayMas`, scroll infinito), `PATCH` masivo al abrir (badge→0), `DELETE /api/notificaciones/[id]` físico del dueño con `stopPropagation`; destinos derivados por tipo en `urlParaTipo()` (`APROBADA→/mis-solicitudes?estado=aprobada` temporal hasta `/mis-prestamos`; columna `url` intacta en NULL); sin polling.
+- Solicitudes admin con links: usuario → `/usuarios/[id]` (perfil completo solo-lectura para admin, incluye cédula/firma, `notFound()` si no existe); recurso → `/inventario?tipo=&destacar=` (abre el acordeón vía `defaultValue`, anillo `ring-brand` + `scrollIntoView` por callback-ref en `RecursoCard`; params inválidos se ignoran).
 - Flujo "Solicitar Préstamo" completo E2E (solicitar→aprobar/rechazar→préstamo + notificaciones visibles en campanita). Pendiente: check visual autenticado, módulo de préstamos (`/mis-prestamos`, retomar `urlParaTipo`) y email a futuro.
 - Deuda: mover `findAssignableAdmin`/`describeDeletedConflict` de `route.ts` a `src/lib/` (import cruzado frágil).
