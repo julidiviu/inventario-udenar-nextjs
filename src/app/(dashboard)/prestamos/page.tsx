@@ -71,6 +71,7 @@ export default async function PrestamosPage({
   const rows = await db
     .select({
       prestamoId: prestamos.id,
+      solicitudId: prestamos.solicitudId,
       recursoId: prestamos.recursoId,
       qr: recursos.qr,
       recursoNombre: recursos.nombre,
@@ -95,6 +96,7 @@ export default async function PrestamosPage({
 
   const initialData: PrestamoRow[] = rows.map((r) => ({
     prestamoId: r.prestamoId,
+    solicitudId: r.solicitudId,
     recursoId: r.recursoId,
     qr: r.qr,
     recursoNombre: r.recursoNombre,

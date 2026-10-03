@@ -1,16 +1,16 @@
 import { redirect } from "next/navigation";
-import { and, count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, gt, ilike, or } from "drizzle-orm";
 import { db } from "@/db";
 import { dependencias, prestamos, recursos, solicitudesPrestamo, tiposRecurso } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { FILTRO_LABEL, filtroAEstadoDB, parseFiltroEstado } from "@/lib/solicitudes";
-import { FILAS_POR_PAGINA, escapeIlike, paginaOffset, parsePagina, parseQuery } from "@/lib/paginacion";
+import { FILAS_POR_PAGINA, escapeIlike, paginaOffset, parseDestacar, parsePagina, parseQuery } from "@/lib/paginacion";
 import { SolicitudesView, type SolicitudRow } from "@/components/solicitudes/SolicitudesView";
 
 export default async function MisSolicitudesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; pagina?: string; q?: string }>;
+  searchParams: Promise<{ estado?: string; pagina?: string; q?: string; destacar?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -20,10 +20,25 @@ export default async function MisSolicitudesPage({
   const filtro = parseFiltroEstado(params.estado);
   const estadoDB = filtroAEstadoDB(filtro);
   const q = parseQuery(params.q);
+  const destacar = parseDestacar(params.destacar);
   let pagina = parsePagina(params.pagina);
 
-  const conds = [eq(solicitudesPrestamo.usuarioId, session.sub)];
-  if (estadoDB) conds.push(eq(solicitudesPrestamo.estado, estadoDB));
+  const baseConds = [eq(solicitudesPrestamo.usuarioId, session.sub)];
+  if (estadoDB) baseConds.push(eq(solicitudesPrestamo.estado, estadoDB));
+
+  if (destacar) {
+    // Deep-link desde un préstamo: sirve la página que contiene esa solicitud.
+    const [{ n: mayores }] = await db
+      .select({ n: count() })
+      .from(solicitudesPrestamo)
+      .innerJoin(recursos, eq(solicitudesPrestamo.recursoId, recursos.id))
+      .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
+      .innerJoin(dependencias, eq(tiposRecurso.dependenciaId, dependencias.id))
+      .where(and(...baseConds, gt(solicitudesPrestamo.id, destacar)));
+    pagina = Math.floor(mayores / FILAS_POR_PAGINA) + 1;
+  }
+
+  const conds = [...baseConds];
   if (q) {
     const patron = `%${escapeIlike(q)}%`;
     conds.push(
@@ -87,6 +102,7 @@ export default async function MisSolicitudesPage({
       pagina={pagina}
       totalPaginas={totalPaginas}
       total={total}
+      destacarId={destacar}
       titulo={`Mis Solicitudes — ${FILTRO_LABEL[filtro]}`}
     />
   );

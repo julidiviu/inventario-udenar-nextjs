@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   Dialog,
   DialogContent,
@@ -56,6 +57,8 @@ interface SolicitudesViewProps {
   pagina: number;
   totalPaginas: number;
   total: number;
+  /** ?destacar=: id de solicitud a resaltar (llega desde un préstamo). */
+  destacarId: number | null;
   titulo: string;
 }
 
@@ -178,6 +181,7 @@ export function SolicitudesView({
   pagina,
   totalPaginas,
   total,
+  destacarId,
   titulo,
 }: SolicitudesViewProps) {
   const router = useRouter();
@@ -205,6 +209,14 @@ export function SolicitudesView({
 
   const inicio = total === 0 ? 0 : (pagina - 1) * FILAS_POR_PAGINA + 1;
   const fin = Math.min(pagina * FILAS_POR_PAGINA, total);
+
+  // Deep-link desde un préstamo: centra la fila destacada al montar o cambiar.
+  useEffect(() => {
+    if (!destacarId) return;
+    document
+      .getElementById(`solicitud-${destacarId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [destacarId]);
 
   async function readError(res: Response): Promise<string> {
     try {
@@ -290,7 +302,12 @@ export function SolicitudesView({
               {initialData.map((r) => (
                 <tr
                   key={r.solicitudId}
-                  className="border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                  id={`solicitud-${r.solicitudId}`}
+                  className={cn(
+                    "border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800",
+                    destacarId === r.solicitudId &&
+                      "bg-brand-50 ring-2 ring-inset ring-brand-500 dark:bg-brand-900/40",
+                  )}
                 >
                   <td className="px-3 py-2 font-medium">{r.qr}</td>
                   <td className="px-3 py-2">

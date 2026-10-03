@@ -28,6 +28,13 @@ interface PaginaParams {
   q: string;
 }
 
+/** Normaliza ?destacar=. Id positivo o null (ids inválidos se ignoran en silencio). */
+export function parseDestacar(raw: unknown): number | null {
+  if (typeof raw !== "string") return null;
+  const n = Number.parseInt(raw, 10);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 /** URL canónica: siempre estado, q solo si hay búsqueda, pagina solo si > 1. */
 export function hrefConParams(base: string, { estado, pagina, q }: PaginaParams): string {
   const sp = new URLSearchParams();

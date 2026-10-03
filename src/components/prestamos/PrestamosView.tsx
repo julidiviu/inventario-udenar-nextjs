@@ -15,6 +15,8 @@ import { FILAS_POR_PAGINA, hrefConParams } from "@/lib/paginacion";
 export interface PrestamoRow {
   /** Key interno, no visible. */
   prestamoId: number;
+  /** Trazabilidad: solicitud de origen (null en historial sin vínculo → QR sin link). */
+  solicitudId: number | null;
   /** Interno para el link, no visible. */
   recursoId: number;
   /** Columna "QR": referencia visible del recurso. */
@@ -190,7 +192,19 @@ export function PrestamosView({
                   key={r.prestamoId}
                   className="border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
                 >
-                  <td className="px-3 py-2 font-medium">{r.qr}</td>
+                  <td className="px-3 py-2 font-medium">
+                    {r.solicitudId ? (
+                      <Link
+                        href={`${scope === "dependencia" ? "/solicitudes" : "/mis-solicitudes"}?estado=todas&destacar=${r.solicitudId}`}
+                        title="Ver solicitud de origen"
+                        className="font-semibold text-brand-700 underline-offset-2 hover:underline dark:text-brand-100"
+                      >
+                        {r.qr}
+                      </Link>
+                    ) : (
+                      r.qr
+                    )}
+                  </td>
                   <td className="px-3 py-2">
                     {scope === "dependencia" ? (
                       <Link

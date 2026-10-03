@@ -49,6 +49,7 @@ export default async function MisPrestamosPage({
   const rows = await db
     .select({
       prestamoId: prestamos.id,
+      solicitudId: prestamos.solicitudId,
       recursoId: prestamos.recursoId,
       qr: recursos.qr,
       recursoNombre: recursos.nombre,
