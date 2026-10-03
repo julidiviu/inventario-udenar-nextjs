@@ -7,8 +7,10 @@ import { getSession } from "@/lib/auth";
 
 export default async function RecursosDependenciaPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tipo?: string; destacar?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -71,6 +73,13 @@ export default async function RecursosDependenciaPage({
       dependenciaNombre={dep.nombre}
       perfilCompleto={Boolean(user?.cedula && user?.telefono && user?.firmaUrl)}
       solicitudesPendientesInicial={pendientes.map((p) => p.recursoId)}
+      tipoAbiertoId={toId((await searchParams).tipo)}
+      destacarId={toId((await searchParams).destacar)}
     />
   );
+}
+
+function toId(raw: string | undefined): number | null {
+  const n = Number(raw);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }

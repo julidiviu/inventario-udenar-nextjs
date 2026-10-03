@@ -31,6 +31,10 @@ export interface SolicitudRow {
   /** Internos para los links (solo dependencia), no visibles. */
   usuarioId: string;
   tipoId: number;
+  /** Interno para el link a /dependencias (solo propias), no visible. */
+  dependenciaId: number;
+  /** Solo scope="propias" (en admin sería constante). */
+  dependenciaNombre: string;
   fechaSolicitud: string;
   fechaDevolucion: string;
   estado: EstadoSolicitud;
@@ -173,7 +177,9 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
         ? r.qr.toLowerCase().includes(q) ||
           r.recursoNombre.toLowerCase().includes(q) ||
           r.usuarioNombre.toLowerCase().includes(q)
-        : r.qr.toLowerCase().includes(q) || r.recursoNombre.toLowerCase().includes(q),
+        : r.qr.toLowerCase().includes(q) ||
+          r.recursoNombre.toLowerCase().includes(q) ||
+          r.dependenciaNombre.toLowerCase().includes(q),
     );
   }, [filas, query, scope]);
 
@@ -234,7 +240,7 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
           placeholder={
             scope === "dependencia"
               ? "🔍 Buscar por QR, recurso o usuario..."
-              : "🔍 Buscar por QR o recurso..."
+              : "🔍 Buscar por QR, recurso o dependencia..."
           }
           className="sm:max-w-sm"
         />
@@ -257,6 +263,7 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
                 <th className="px-3 py-2 font-semibold">QR</th>
                 <th className="px-3 py-2 font-semibold">Recurso</th>
                 {scope === "dependencia" && <th className="px-3 py-2 font-semibold">Usuario</th>}
+                {scope === "propias" && <th className="px-3 py-2 font-semibold">Dependencia</th>}
                 <th className="px-3 py-2 font-semibold">Fecha Solicitud</th>
                 <th className="px-3 py-2 font-semibold">Fecha Tentativa de Devolución</th>
                 <th className="px-3 py-2 font-semibold">Estado</th>
@@ -279,7 +286,12 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
                         {r.recursoNombre}
                       </Link>
                     ) : (
-                      r.recursoNombre
+                      <Link
+                        href={`/dependencias/${r.dependenciaId}?tipo=${r.tipoId}&destacar=${r.recursoId}`}
+                        className="font-semibold text-brand-700 underline-offset-2 hover:underline dark:text-brand-100"
+                      >
+                        {r.recursoNombre}
+                      </Link>
                     )}
                   </td>
                   {scope === "dependencia" && (
@@ -292,6 +304,7 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
                       </Link>
                     </td>
                   )}
+                  {scope === "propias" && <td className="px-3 py-2">{r.dependenciaNombre}</td>}
                   <td className="px-3 py-2">{formatFechaCO(r.fechaSolicitud)}</td>
                   <td className="px-3 py-2">{formatFechaCO(r.fechaDevolucion)}</td>
                   <td className="px-3 py-2">
@@ -304,7 +317,7 @@ export function SolicitudesView({ scope, estadoInicial, initialData, titulo }: S
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={scope === "dependencia" ? 7 : 6}>
+                  <td colSpan={7}>
                     <EmptyState
                       message={
                         filas.length === 0

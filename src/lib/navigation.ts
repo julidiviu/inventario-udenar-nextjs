@@ -32,7 +32,14 @@ const adminExtra: NavItem[] = [
       { label: "Rechazadas", href: "/solicitudes?estado=rechazada" },
     ],
   },
-  { label: "Préstamos", href: FUTURE },
+  {
+    label: "Préstamos",
+    href: "/prestamos?estado=todas",
+    children: [
+      { label: "Pendientes", href: "/prestamos?estado=pendiente" },
+      { label: "Devueltos", href: "/prestamos?estado=devuelto" },
+    ],
+  },
   { label: "Estadísticas", href: FUTURE },
 ];
 
@@ -48,7 +55,14 @@ const prestatarioExtra: NavItem[] = [
       { label: "Rechazadas", href: "/mis-solicitudes?estado=rechazada" },
     ],
   },
-  { label: "Mis Préstamos", href: FUTURE },
+  {
+    label: "Mis Préstamos",
+    href: "/mis-prestamos?estado=todas",
+    children: [
+      { label: "Pendientes", href: "/mis-prestamos?estado=pendiente" },
+      { label: "Devueltos", href: "/mis-prestamos?estado=devuelto" },
+    ],
+  },
 ];
 
 export function getNavByRole(rol: Rol): NavItem[] {

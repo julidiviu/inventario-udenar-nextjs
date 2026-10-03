@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { prestamos, recursos, solicitudesPrestamo } from "@/db/schema";
+import { dependencias, prestamos, recursos, solicitudesPrestamo, tiposRecurso } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { FILTRO_LABEL, filtroAEstadoDB, parseFiltroEstado } from "@/lib/solicitudes";
 import { SolicitudesView, type SolicitudRow } from "@/components/solicitudes/SolicitudesView";
@@ -24,6 +24,9 @@ export default async function MisSolicitudesPage({
       recursoId: solicitudesPrestamo.recursoId,
       qr: recursos.qr,
       recursoNombre: recursos.nombre,
+      tipoId: tiposRecurso.id,
+      dependenciaId: tiposRecurso.dependenciaId,
+      dependenciaNombre: dependencias.nombre,
       fechaSolicitud: solicitudesPrestamo.fechaSolicitud,
       fechaDevolucion: solicitudesPrestamo.fechaDevolucion,
       estado: solicitudesPrestamo.estado,
@@ -31,6 +34,8 @@ export default async function MisSolicitudesPage({
     })
     .from(solicitudesPrestamo)
     .innerJoin(recursos, eq(solicitudesPrestamo.recursoId, recursos.id))
+    .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
+    .innerJoin(dependencias, eq(tiposRecurso.dependenciaId, dependencias.id))
     .leftJoin(prestamos, eq(prestamos.solicitudId, solicitudesPrestamo.id))
     .where(
       estadoDB
@@ -43,7 +48,6 @@ export default async function MisSolicitudesPage({
     ...r,
     usuarioNombre: "",
     usuarioId: "",
-    tipoId: 0,
     fechaSolicitud: r.fechaSolicitud.toISOString(),
   }));
 
