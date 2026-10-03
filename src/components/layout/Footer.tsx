@@ -6,7 +6,7 @@ export function Footer() {
           <strong className="text-white">Copyright &copy; 2025</strong> Todos los derechos reservados.
         </p>
         <p>
-          <b className="text-white">Versión</b> 1.0.0
+          <b className="text-white">Versión</b> 2.0.0
         </p>
       </div>
     </footer>

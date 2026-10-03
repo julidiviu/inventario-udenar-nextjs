@@ -20,6 +20,6 @@
 
 ## Próximos Pasos
 - Módulo inventario/recursos: UI + API completas. Pendiente: probar flujo E2E con usuarios reales (crear tipo/recurso, solicitar, eliminar en cascada).
-- Solicitudes Fase 2 completa: `PATCH /api/solicitudes/[id]` (admin: aprobar en tx solicitud→aprobado + préstamo + `disponible=false` + notificación APROBADA; rechazar + RECHAZADA; re-chequeo pendiente en tx, 23505→409, 23514→400), `DELETE` físico del dueño en pendiente, `POST` en tx + notificación SOLICITUD al admin (sin admin = sin notificación); UI con confirm `Dialog` y actualización local (en filtro sale de la lista, en "todas" cambia badge); campanita sigue pendiente (solo se crean filas); email futuro solo en memoria.
-- Flujo "Solicitar Préstamo" completo E2E (solicitar→aprobar/rechazar→préstamo). Pendiente: check visual autenticado y campanita de notificaciones (listar/marcar leída) + email a futuro.
+- Campanita (`NotificacionesBell` en `Navbar` con `key` por ruta): popover propio responsive (`min(22rem,100vw-2rem)`, `70dvh`), badge `noLeidas` (oculto en 0, "9+"), `GET /api/notificaciones?before=&limit=4` (cursor keyset + `hayMas`, scroll infinito), `PATCH` masivo al abrir (badge→0), `DELETE /api/notificaciones/[id]` físico del dueño con `stopPropagation`; destinos derivados por tipo en `urlParaTipo()` (`APROBADA→/mis-solicitudes?estado=aprobada` temporal hasta `/mis-prestamos`; columna `url` intacta en NULL); sin polling.
+- Flujo "Solicitar Préstamo" completo E2E (solicitar→aprobar/rechazar→préstamo + notificaciones visibles en campanita). Pendiente: check visual autenticado, módulo de préstamos (`/mis-prestamos`, retomar `urlParaTipo`) y email a futuro.
 - Deuda: mover `findAssignableAdmin`/`describeDeletedConflict` de `route.ts` a `src/lib/` (import cruzado frágil).
