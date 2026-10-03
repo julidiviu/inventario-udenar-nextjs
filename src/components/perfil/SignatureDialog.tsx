@@ -61,8 +61,8 @@ export function SignatureDialog({
             maxWidth={2.5}
             onEnd={handleEnd}
             canvasProps={{
-              width: 500,
-              height: 200,
+              // Sin width/height fijos: el wrapper sincroniza el buffer al CSS x devicePixelRatio
+              // y signature_pad mapea 1:1 (con fijos de 500x200 el trazo se desfasa del cursor).
               className: "h-48 w-full touch-none bg-transparent",
             }}
           />
