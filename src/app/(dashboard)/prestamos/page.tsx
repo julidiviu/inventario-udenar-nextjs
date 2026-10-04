@@ -84,6 +84,7 @@ export default async function PrestamosPage({
       fechaDevolucion: prestamos.fechaDevolucion,
       fechaDevolucionReal: prestamos.fechaDevolucionReal,
       devuelto: prestamos.devuelto,
+      contratoUrl: prestamos.contratoPrestamoUrl,
     })
     .from(prestamos)
     .innerJoin(recursos, eq(prestamos.recursoId, recursos.id))
@@ -109,6 +110,7 @@ export default async function PrestamosPage({
     fechaDevolucion: r.fechaDevolucion,
     fechaDevolucionReal: r.fechaDevolucionReal?.toISOString() ?? null,
     devuelto: r.devuelto,
+    contratoUrl: r.contratoUrl,
   }));
 
   return (

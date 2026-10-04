@@ -38,6 +38,8 @@ export interface PrestamoRow {
   /** ISO del timestamptz real, null si sigue pendiente. */
   fechaDevolucionReal: string | null;
   devuelto: boolean;
+  /** URL del PDF en Blob; null en préstamos anteriores al módulo de contratos. */
+  contratoUrl: string | null;
 }
 
 export type PrestamosScope = "propias" | "dependencia";
@@ -91,29 +93,34 @@ function ContadorBadge({ row }: { row: PrestamoRow }) {
   );
 }
 
-/** Fase 1: placeholders deshabilitados, sin mutaciones. */
+/** Solo admin: Devolver/Extender pendientes; Contrato abre el PDF (deshabilitado sin URL). */
 function Acciones({ row }: { row: PrestamoRow }) {
   const btn =
     "cursor-not-allowed rounded-lg px-2.5 py-1 text-xs font-semibold text-white opacity-60";
-  if (!row.devuelto) {
-    return (
-      <div className="flex flex-wrap items-center justify-center gap-1.5">
-        <button type="button" disabled title="Próximamente" className={`${btn} bg-green-700`}>
-          Devolver
-        </button>
-        <button type="button" disabled title="Próximamente" className={`${btn} bg-brand-700`}>
-          Extender
-        </button>
-        <button type="button" disabled title="Próximamente" className={`${btn} bg-zinc-600`}>
-          Contrato
-        </button>
-      </div>
-    );
-  }
-  return (
-    <button type="button" disabled title="Próximamente" className={`${btn} bg-zinc-600`}>
+  const contrato = row.contratoUrl ? (
+    <a
+      href={`/api/prestamos/${row.prestamoId}/contrato`}
+      target="_blank"
+      rel="noreferrer"
+      className="rounded-lg border border-green-700 px-2.5 py-1 text-xs font-semibold text-green-800 transition hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-950"
+    >
+      Contrato
+    </a>
+  ) : (
+    <button type="button" disabled title="Contrato no disponible" className={`${btn} bg-zinc-600`}>
       Contrato
     </button>
+  );
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-1.5">
+      <button type="button" disabled title="Próximamente" className={`${btn} bg-green-700`}>
+        Devolver
+      </button>
+      <button type="button" disabled title="Próximamente" className={`${btn} bg-brand-700`}>
+        Extender
+      </button>
+      {contrato}
+    </div>
   );
 }
 

@@ -74,6 +74,7 @@ export default async function MisPrestamosPage({
     ...r,
     usuarioNombre: "",
     usuarioId: "",
+    contratoUrl: null,
     fechaPrestamo: r.fechaPrestamo.toISOString(),
     fechaDevolucionReal: r.fechaDevolucionReal?.toISOString() ?? null,
   }));

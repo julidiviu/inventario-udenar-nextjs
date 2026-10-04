@@ -74,6 +74,7 @@ export default async function MisSolicitudesPage({
       fechaDevolucion: solicitudesPrestamo.fechaDevolucion,
       estado: solicitudesPrestamo.estado,
       contratoUrl: prestamos.contratoPrestamoUrl,
+      prestamoId: prestamos.id,
     })
     .from(solicitudesPrestamo)
     .innerJoin(recursos, eq(solicitudesPrestamo.recursoId, recursos.id))

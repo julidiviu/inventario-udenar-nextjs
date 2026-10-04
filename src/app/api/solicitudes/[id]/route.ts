@@ -3,6 +3,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { notificaciones, prestamos, recursos, solicitudesPrestamo, tiposRecurso, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
+import { deleteFromBlob, isBlobUrl } from "@/lib/blob";
+import { generarYSubirContrato, obtenerDatosContrato } from "@/lib/contratos";
 import { dbErrorCause } from "@/lib/dependencias";
 import { adminDependenciaId } from "@/lib/recursos-db";
 import { validateAccion } from "@/lib/solicitudes";
@@ -81,6 +83,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const estadoDB = valid.data.accion === "aprobar" ? "aprobado" : "rechazado";
   const verbo = valid.data.accion === "aprobar" ? "aprobada" : "rechazada";
 
+  // Contrato antes de la tx: si Blob falla no se toca la DB; si la tx falla se borra el huérfano.
+  let contratoUrl: string | null = null;
+  if (valid.data.accion === "aprobar") {
+    const full = await obtenerDatosContrato(id);
+    if (!full || full.dependenciaId !== dependenciaId) {
+      return NextResponse.json({ error: "Solicitud no encontrada." }, { status: 404 });
+    }
+    try {
+      contratoUrl = await generarYSubirContrato(full.datos, id);
+    } catch {
+      return NextResponse.json({ error: "No se pudo generar el contrato." }, { status: 500 });
+    }
+  }
+
   try {
     await db.transaction(async (tx) => {
       // Re-chequeo dentro del tx: si otra transacción la procesó primero, 409.
@@ -97,7 +113,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
           usuarioId: current.usuarioId,
           recursoId: current.recursoId,
           fechaDevolucion: current.fechaDevolucion,
-          contratoPrestamoUrl: null,
+          contratoPrestamoUrl: contratoUrl,
         });
         await tx.update(recursos).set({ disponible: false }).where(eq(recursos.id, current.recursoId));
       }
@@ -108,6 +124,13 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       });
     });
   } catch (err) {
+    if (contratoUrl && isBlobUrl(contratoUrl)) {
+      try {
+        await deleteFromBlob(contratoUrl);
+      } catch {
+        // Huérfano en Blob: la DB quedó intacta, el error real se reporta abajo.
+      }
+    }
     if (err instanceof Error && err.message === "conflicto") {
       return NextResponse.json({ error: "La solicitud ya fue procesada." }, { status: 409 });
     }

@@ -100,6 +100,7 @@ export default async function SolicitudesPage({
       fechaDevolucion: solicitudesPrestamo.fechaDevolucion,
       estado: solicitudesPrestamo.estado,
       contratoUrl: prestamos.contratoPrestamoUrl,
+      prestamoId: prestamos.id,
     })
     .from(solicitudesPrestamo)
     .innerJoin(recursos, eq(solicitudesPrestamo.recursoId, recursos.id))
@@ -125,6 +126,7 @@ export default async function SolicitudesPage({
     fechaDevolucion: r.fechaDevolucion,
     estado: r.estado,
     contratoUrl: r.contratoUrl,
+    prestamoId: r.prestamoId,
   }));
 
   return (

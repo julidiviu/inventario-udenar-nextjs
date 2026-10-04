@@ -43,6 +43,8 @@ export interface SolicitudRow {
   fechaDevolucion: string;
   estado: EstadoSolicitud;
   contratoUrl: string | null;
+  /** Id del préstamo creado al aprobar (solo admin/aprobada). */
+  prestamoId: number | null;
 }
 
 export type SolicitudesScope = "propias" | "dependencia";
@@ -98,6 +100,8 @@ function Acciones({
 }) {
   const btn =
     "rounded-lg px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60";
+  const contratoCls =
+    "rounded-lg border border-green-700 px-2.5 py-1 text-xs font-semibold text-green-800 transition hover:bg-green-50 dark:border-green-600 dark:text-green-400 dark:hover:bg-green-950";
   if (scope === "dependencia") {
     if (row.estado === "pendiente") {
       return (
@@ -121,12 +125,24 @@ function Acciones({
         </div>
       );
     }
+    if (row.estado === "aprobado" && row.prestamoId !== null && row.contratoUrl) {
+      return (
+        <a
+          href={`/api/prestamos/${row.prestamoId}/contrato`}
+          target="_blank"
+          rel="noreferrer"
+          className={contratoCls}
+        >
+          Contrato
+        </a>
+      );
+    }
     if (row.estado === "aprobado") {
       return (
         <button
           type="button"
           disabled
-          title="Próximamente"
+          title="Contrato no disponible"
           className="cursor-not-allowed rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white opacity-60"
         >
           Contrato
