@@ -325,7 +325,19 @@ export function SolicitudesView({
                       "bg-brand-50 ring-2 ring-inset ring-brand-500 dark:bg-brand-900/40",
                   )}
                 >
-                  <td className="px-3 py-2 font-medium">{r.qr}</td>
+                  <td className="px-3 py-2 font-medium">
+                    {r.prestamoId ? (
+                      <Link
+                        href={`${scope === "dependencia" ? "/prestamos" : "/mis-prestamos"}?estado=todas&destacar=${r.prestamoId}`}
+                        title="Ver préstamo"
+                        className="font-semibold text-brand-700 underline-offset-2 hover:underline dark:text-brand-100"
+                      >
+                        {r.qr}
+                      </Link>
+                    ) : (
+                      r.qr
+                    )}
+                  </td>
                   <td className="px-3 py-2">
                     {scope === "dependencia" ? (
                       <Link

@@ -1,10 +1,10 @@
 import { redirect } from "next/navigation";
-import { and, count, desc, eq, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, count, desc, eq, gt, ilike, isNull, or, sql } from "drizzle-orm";
 import { db } from "@/db";
 import { dependencias, prestamos, recursos, tiposRecurso, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { FILTRO_PRESTAMO_LABEL, filtroADevueltoDB, parseFiltroPrestamo } from "@/lib/prestamos";
-import { FILAS_POR_PAGINA, escapeIlike, paginaOffset, parsePagina, parseQuery } from "@/lib/paginacion";
+import { FILAS_POR_PAGINA, escapeIlike, paginaOffset, parseDestacar, parsePagina, parseQuery } from "@/lib/paginacion";
 import { PrestamosView, type PrestamoRow } from "@/components/prestamos/PrestamosView";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -12,7 +12,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 export default async function PrestamosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string; pagina?: string; q?: string }>;
+  searchParams: Promise<{ estado?: string; pagina?: string; q?: string; destacar?: string }>;
 }) {
   const session = await getSession();
   if (!session) redirect("/login");
@@ -22,6 +22,7 @@ export default async function PrestamosPage({
   const filtro = parseFiltroPrestamo(params.estado);
   const devueltoDB = filtroADevueltoDB(filtro);
   const q = parseQuery(params.q);
+  const destacar = parseDestacar(params.destacar);
   let pagina = parsePagina(params.pagina);
 
   const [dep] = await db
@@ -41,8 +42,23 @@ export default async function PrestamosPage({
     );
   }
 
-  const conds = [eq(tiposRecurso.dependenciaId, dep.id)];
-  if (devueltoDB !== null) conds.push(eq(prestamos.devuelto, devueltoDB));
+  const baseConds = [eq(tiposRecurso.dependenciaId, dep.id)];
+  if (devueltoDB !== null) baseConds.push(eq(prestamos.devuelto, devueltoDB));
+
+  if (destacar) {
+    // Deep-link desde una solicitud: sirve la página que contiene ese préstamo
+    // (orden desc(id): su página = cuántas filas mayores hay / 15). Mismo scope,
+    // así un id ajeno cae en página 1 y se ignora en silencio.
+    const [{ n: mayores }] = await db
+      .select({ n: count() })
+      .from(prestamos)
+      .innerJoin(recursos, eq(prestamos.recursoId, recursos.id))
+      .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
+      .where(and(...baseConds, gt(prestamos.id, destacar)));
+    pagina = Math.floor(mayores / FILAS_POR_PAGINA) + 1;
+  }
+
+  const conds = [...baseConds];
   if (q) {
     const patron = `%${escapeIlike(q)}%`;
     conds.push(
@@ -123,6 +139,7 @@ export default async function PrestamosPage({
       pagina={pagina}
       totalPaginas={totalPaginas}
       total={total}
+      destacarId={destacar}
       titulo={`Préstamos — ${FILTRO_PRESTAMO_LABEL[filtro]}`}
     />
   );

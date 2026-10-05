@@ -54,6 +54,8 @@ interface PrestamosViewProps {
   pagina: number;
   totalPaginas: number;
   total: number;
+  /** ?destacar=: id de préstamo a resaltar (llega desde una solicitud). */
+  destacarId: number | null;
   titulo: string;
 }
 
@@ -132,6 +134,7 @@ export function PrestamosView({
   pagina,
   totalPaginas,
   total,
+  destacarId,
   titulo,
 }: PrestamosViewProps) {
   const router = useRouter();
@@ -156,6 +159,14 @@ export function PrestamosView({
 
   const inicio = total === 0 ? 0 : (pagina - 1) * FILAS_POR_PAGINA + 1;
   const fin = Math.min(pagina * FILAS_POR_PAGINA, total);
+
+  // Deep-link desde una solicitud: centra la fila destacada al montar o cambiar.
+  useEffect(() => {
+    if (!destacarId) return;
+    document
+      .getElementById(`prestamo-${destacarId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [destacarId]);
 
   return (
     <div className="mx-auto w-full max-w-7xl rounded-[20px] bg-gradient-to-br from-white to-zinc-50 p-6 shadow-[0_25px_45px_rgba(0,0,0,0.08)] sm:p-10 dark:from-zinc-900 dark:to-zinc-950">
@@ -197,7 +208,12 @@ export function PrestamosView({
               {initialData.map((r) => (
                 <tr
                   key={r.prestamoId}
-                  className="border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                  id={`prestamo-${r.prestamoId}`}
+                  className={`border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800 ${
+                    destacarId === r.prestamoId
+                      ? "bg-brand-50 ring-2 ring-inset ring-brand-500 dark:bg-brand-900/40"
+                      : ""
+                  }`}
                 >
                   <td className="px-3 py-2 font-medium">
                     {r.solicitudId ? (
