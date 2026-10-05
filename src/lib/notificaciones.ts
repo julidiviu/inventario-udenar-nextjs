@@ -1,7 +1,7 @@
 /** Página de notificaciones: las últimas N por cursor (keyset sobre id desc). */
 export const NOTIFICACIONES_PAGE = 4;
 
-export type TipoNotificacion = "SOLICITUD" | "APROBADA" | "RECHAZADA" | "DEVUELTA";
+export type TipoNotificacion = "SOLICITUD" | "APROBADA" | "RECHAZADA" | "DEVUELTA" | "EXTENDIDA";
 
 export interface NotificacionItem {
   id: number;
@@ -16,6 +16,7 @@ export const TIPO_META: Record<TipoNotificacion, { label: string; clases: string
   APROBADA: { label: "Aprobada", clases: "bg-green-600 text-white" },
   RECHAZADA: { label: "Rechazada", clases: "bg-red-600 text-white" },
   DEVUELTA: { label: "Devuelta", clases: "bg-zinc-500 text-white" },
+  EXTENDIDA: { label: "Extendida", clases: "bg-brand-700 text-white" },
 };
 
 /**
@@ -30,6 +31,9 @@ export function urlParaTipo(tipo: TipoNotificacion): string | null {
       return "/mis-solicitudes?estado=todas";
     case "APROBADA":
       return "/mis-solicitudes?estado=aprobada";
+    case "DEVUELTA":
+    case "EXTENDIDA":
+      return "/mis-prestamos?estado=todas";
     default:
       return null;
   }

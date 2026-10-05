@@ -18,4 +18,5 @@ export const tipoNotificacionEnum = pgEnum("tipo_notificacion", [
   "APROBADA",
   "RECHAZADA",
   "DEVUELTA",
+  "EXTENDIDA",
 ]);

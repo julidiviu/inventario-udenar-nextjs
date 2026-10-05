@@ -3,6 +3,16 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ExtenderPrestamoDialog } from "./ExtenderPrestamoDialog";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -95,9 +105,19 @@ function ContadorBadge({ row }: { row: PrestamoRow }) {
   );
 }
 
-/** Solo admin: Devolver/Extender pendientes; Contrato abre el PDF (deshabilitado sin URL). */
-function Acciones({ row }: { row: PrestamoRow }) {
-  const btn =
+/** Solo admin (scope="dependencia"): Devolver/Extender habilitados en pendiente. */
+function Acciones({
+  row,
+  busy,
+  onPedir,
+  onExtender,
+}: {
+  row: PrestamoRow;
+  busy: boolean;
+  onPedir: (row: PrestamoRow) => void;
+  onExtender: (row: PrestamoRow) => void;
+}) {
+  const dis =
     "cursor-not-allowed rounded-lg px-2.5 py-1 text-xs font-semibold text-white opacity-60";
   const contrato = row.contratoUrl ? (
     <a
@@ -109,16 +129,29 @@ function Acciones({ row }: { row: PrestamoRow }) {
       Contrato
     </a>
   ) : (
-    <button type="button" disabled title="Contrato no disponible" className={`${btn} bg-zinc-600`}>
+    <button type="button" disabled title="Contrato no disponible" className={`${dis} bg-zinc-600`}>
       Contrato
     </button>
   );
+  if (row.devuelto) {
+    return <div className="flex flex-wrap items-center justify-center gap-1.5">{contrato}</div>;
+  }
   return (
     <div className="flex flex-wrap items-center justify-center gap-1.5">
-      <button type="button" disabled title="Próximamente" className={`${btn} bg-green-700`}>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onPedir(row)}
+        className="rounded-lg bg-green-700 px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+      >
         Devolver
       </button>
-      <button type="button" disabled title="Próximamente" className={`${btn} bg-brand-700`}>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => onExtender(row)}
+        className="rounded-lg bg-brand-700 px-2.5 py-1 text-xs font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+      >
         Extender
       </button>
       {contrato}
@@ -141,6 +174,11 @@ export function PrestamosView({
   const pathname = usePathname();
   const [query, setQuery] = useState(qInicial);
   const [prevQ, setPrevQ] = useState(qInicial);
+  const [confirm, setConfirm] = useState<PrestamoRow | null>(null);
+  const [extender, setExtender] = useState<PrestamoRow | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [actionError, setActionError] = useState("");
+  const [exito, setExito] = useState(false);
   // Sincroniza si ?q= cambia por navegación (atrás/adelante) sin remontar la vista.
   if (qInicial !== prevQ) {
     setPrevQ(qInicial);
@@ -159,6 +197,38 @@ export function PrestamosView({
 
   const inicio = total === 0 ? 0 : (pagina - 1) * FILAS_POR_PAGINA + 1;
   const fin = Math.min(pagina * FILAS_POR_PAGINA, total);
+
+  async function readError(res: Response): Promise<string> {
+    try {
+      const body = await res.json();
+      return typeof body.error === "string" ? body.error : "Operación fallida.";
+    } catch {
+      return "Operación fallida.";
+    }
+  }
+
+  async function handleConfirm() {
+    if (!confirm) return;
+    setSaving(true);
+    setActionError("");
+    try {
+      const res = await fetch(`/api/prestamos/${confirm.prestamoId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accion: "devolver" }),
+      });
+      if (!res.ok) {
+        setActionError(await readError(res));
+        return;
+      }
+      setConfirm(null);
+      setExito(true);
+    } catch {
+      setActionError("No se pudo completar la operación.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // Deep-link desde una solicitud: centra la fila destacada al montar o cambiar.
   useEffect(() => {
@@ -187,6 +257,12 @@ export function PrestamosView({
           {FILTRO_PRESTAMO_LABEL[estadoInicial]} · Mostrando {inicio}–{fin} de {total} préstamos
         </p>
       </div>
+
+      {actionError && (
+        <p className="mb-4 rounded-[10px] border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
+          {actionError}
+        </p>
+      )}
 
       <section className="overflow-hidden rounded-[18px] bg-white shadow-[0_10px_32px_rgba(0,0,0,0.12)] dark:bg-zinc-900 dark:shadow-none dark:ring-1 dark:ring-zinc-800">
         <div className="overflow-x-auto">
@@ -268,7 +344,18 @@ export function PrestamosView({
                   </td>
                   {scope === "dependencia" && (
                     <td className="px-3 py-2">
-                      <Acciones row={r} />
+                      <Acciones
+                        row={r}
+                        busy={saving}
+                        onPedir={(row) => {
+                          setConfirm(row);
+                          setActionError("");
+                        }}
+                        onExtender={(row) => {
+                          setExtender(row);
+                          setActionError("");
+                        }}
+                      />
                     </td>
                   )}
                 </tr>
@@ -292,6 +379,68 @@ export function PrestamosView({
       </section>
 
       <Paginador estado={estadoInicial} q={qInicial} pagina={pagina} totalPaginas={totalPaginas} />
+
+      {extender && (
+        <ExtenderPrestamoDialog
+          key={extender.prestamoId}
+          prestamoId={extender.prestamoId}
+          recursoNombre={extender.recursoNombre}
+          qr={extender.qr}
+          fechaDevolucion={extender.fechaDevolucion}
+          onClose={() => setExtender(null)}
+          onDone={() => {
+            setExtender(null);
+            router.refresh();
+          }}
+        />
+      )}
+
+      <Dialog open={confirm !== null} onOpenChange={(v) => !v && !saving && setConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar devolución</DialogTitle>
+            <DialogDescription>
+              {confirm
+                ? `¿Marcar como devuelto el préstamo de «${confirm.recursoNombre}» (${confirm.qr})? El recurso volverá a estar disponible.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={saving} onClick={() => setConfirm(null)}>
+              Volver
+            </Button>
+            <Button
+              disabled={saving}
+              onClick={handleConfirm}
+              className="bg-green-700 text-white hover:bg-green-800"
+            >
+              {saving ? "Procesando..." : "Devolver"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={exito} onOpenChange={(v) => !v && setExito(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Préstamo devuelto</DialogTitle>
+            <DialogDescription>
+              Préstamo marcado como devuelto correctamente. El recurso ya está disponible.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setExito(false);
+                router.refresh();
+              }}
+              className="bg-green-700 text-white hover:bg-green-800"
+            >
+              Entendido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

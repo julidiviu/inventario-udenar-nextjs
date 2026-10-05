@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Bell, Trash2 } from "lucide-react";
-import { formatFechaCO } from "@/lib/dates";
+import { formatFechaHoraCO } from "@/lib/dates";
 import type { NotificacionItem } from "@/lib/notificaciones";
 import { NOTIFICACIONES_PAGE, TIPO_META, urlParaTipo } from "@/lib/notificaciones";
 
@@ -187,7 +187,7 @@ export function NotificacionesBell() {
                       {meta.label}
                     </span>
                     <p title={n.mensaje} className="mt-1 line-clamp-2 text-[13px] leading-snug text-zinc-800 dark:text-zinc-200">{n.mensaje}</p>
-                    <p className="mt-0.5 text-[11px] text-zinc-400">{formatFechaCO(n.fecha)}</p>
+                    <p className="mt-0.5 text-[11px] text-zinc-400">{formatFechaHoraCO(n.fecha)}</p>
                   </div>
                   <button
                     type="button"

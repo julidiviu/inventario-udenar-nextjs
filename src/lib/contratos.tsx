@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
-import { dependencias, recursos, solicitudesPrestamo, tiposRecurso, users } from "@/db/schema";
+import { dependencias, prestamos, recursos, solicitudesPrestamo, tiposRecurso, users } from "@/db/schema";
 import { uploadToBlob } from "@/lib/blob";
 import { formatFechaCO } from "@/lib/dates";
 import { getFullName } from "@/components/layout/user";
@@ -42,6 +42,31 @@ export async function obtenerDatosContrato(solicitudId: number): Promise<DatosCo
     .from(solicitudesPrestamo)
     .where(eq(solicitudesPrestamo.id, solicitudId));
   if (!sol) return null;
+  return datosPara(sol.usuarioId, sol.recursoId, sol.fechaDevolucion);
+}
+
+/**
+ * Datos para regenerar el contrato de un préstamo (extensión).
+ * Funciona con o sin solicitud vinculada; la fecha es siempre la nueva pactada.
+ * Null si el préstamo, el usuario o el recurso no existen.
+ */
+export async function obtenerDatosContratoPorPrestamo(
+  prestamoId: number,
+  nuevaFechaDevolucion: string,
+): Promise<DatosContratoCompletos | null> {
+  const [p] = await db
+    .select({ usuarioId: prestamos.usuarioId, recursoId: prestamos.recursoId })
+    .from(prestamos)
+    .where(eq(prestamos.id, prestamoId));
+  if (!p) return null;
+  return datosPara(p.usuarioId, p.recursoId, nuevaFechaDevolucion);
+}
+
+async function datosPara(
+  usuarioId: string,
+  recursoId: number,
+  fechaDevolucionISO: string,
+): Promise<DatosContratoCompletos | null> {
 
   const [[user], [rec]] = await Promise.all([
     db
@@ -54,7 +79,7 @@ export async function obtenerDatosContrato(solicitudId: number): Promise<DatosCo
         firmaUrl: users.firmaUrl,
       })
       .from(users)
-      .where(and(eq(users.id, sol.usuarioId), eq(users.isActive, true), isNull(users.deletedAt))),
+      .where(and(eq(users.id, usuarioId), eq(users.isActive, true), isNull(users.deletedAt))),
     db
       .select({
         nombre: recursos.nombre,
@@ -66,7 +91,7 @@ export async function obtenerDatosContrato(solicitudId: number): Promise<DatosCo
       })
       .from(recursos)
       .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
-      .where(eq(recursos.id, sol.recursoId)),
+      .where(eq(recursos.id, recursoId)),
   ]);
   if (!user || !rec) return null;
 
@@ -109,7 +134,7 @@ export async function obtenerDatosContrato(solicitudId: number): Promise<DatosCo
     recursoQr: rec.qr,
     recursoTipo: rec.tipoNombre,
     recursoDescripcion: rec.descripcion,
-    fechaDevolucion: formatFechaCO(sol.fechaDevolucion),
+    fechaDevolucion: formatFechaCO(fechaDevolucionISO),
     fechaSuscripcion: formatFechaCO(new Date()),
     escudo: `data:image/png;base64,${escudoBuf.toString("base64")}`,
   };
