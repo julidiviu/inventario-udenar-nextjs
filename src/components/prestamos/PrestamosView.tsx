@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Paginador } from "@/components/ui/Paginador";
-import { formatFechaCO } from "@/lib/dates";
+import { formatFechaCO, formatFechaHoraCO } from "@/lib/dates";
 import type { FiltroPrestamo } from "@/lib/prestamos";
 import { diasHasta, FILTRO_PRESTAMO_LABEL } from "@/lib/prestamos";
 import { FILAS_POR_PAGINA, hrefConParams } from "@/lib/paginacion";
@@ -332,9 +332,13 @@ export function PrestamosView({
                     </td>
                   )}
                   {scope === "propias" && <td className="px-3 py-2">{r.dependenciaNombre}</td>}
-                  <td className="px-3 py-2">{formatFechaCO(r.fechaPrestamo)}</td>
                   <td className="px-3 py-2">
-                    {formatFechaCO(r.devuelto && r.fechaDevolucionReal ? r.fechaDevolucionReal : r.fechaDevolucion)}
+                    {r.devuelto ? formatFechaHoraCO(r.fechaPrestamo) : formatFechaCO(r.fechaPrestamo)}
+                  </td>
+                  <td className="px-3 py-2">
+                    {r.devuelto && r.fechaDevolucionReal
+                      ? formatFechaHoraCO(r.fechaDevolucionReal)
+                      : formatFechaCO(r.fechaDevolucion)}
                   </td>
                   <td className="px-3 py-2">
                     <ContadorBadge row={r} />

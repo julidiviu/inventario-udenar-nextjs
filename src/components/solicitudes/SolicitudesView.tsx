@@ -17,7 +17,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { Input } from "@/components/ui/input";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Paginador } from "@/components/ui/Paginador";
-import { formatFechaCO } from "@/lib/dates";
+import { formatFechaCO, formatFechaHoraCO } from "@/lib/dates";
 import type { AccionSolicitud, EstadoSolicitud, FiltroEstado } from "@/lib/solicitudes";
 import { FILTRO_LABEL } from "@/lib/solicitudes";
 import { FILAS_POR_PAGINA, hrefConParams } from "@/lib/paginacion";
@@ -366,7 +366,7 @@ export function SolicitudesView({
                     </td>
                   )}
                   {scope === "propias" && <td className="px-3 py-2">{r.dependenciaNombre}</td>}
-                  <td className="px-3 py-2">{formatFechaCO(r.fechaSolicitud)}</td>
+                  <td className="px-3 py-2">{formatFechaHoraCO(r.fechaSolicitud)}</td>
                   <td className="px-3 py-2">{formatFechaCO(r.fechaDevolucion)}</td>
                   <td className="px-3 py-2">
                     <SolicitudBadge estado={r.estado} />

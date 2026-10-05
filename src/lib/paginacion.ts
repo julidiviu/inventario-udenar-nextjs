@@ -1,5 +1,5 @@
 /** Filas por página (fijo, predecible en cualquier pantalla). */
-export const FILAS_POR_PAGINA = 15;
+export const FILAS_POR_PAGINA = 10;
 
 /** Normaliza ?pagina=. Default 1, mínimo 1. */
 export function parsePagina(raw: unknown): number {

@@ -47,7 +47,7 @@ export default async function SolicitudesPage({
 
   if (destacar) {
     // Deep-link desde un préstamo: sirve la página que contiene esa solicitud
-    // (orden desc(id): su página = cuántas filas mayores hay / 15). Mismo scope,
+    // (orden desc(id): su página = cuántas filas mayores hay / 10). Mismo scope,
     // así un id ajeno cae en página 1 y se ignora en silencio.
     const [{ n: mayores }] = await db
       .select({ n: count() })
