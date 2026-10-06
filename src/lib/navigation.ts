@@ -13,8 +13,6 @@ export interface NavItem {
 }
 
 // Paridad visual con base.html. Solo /dashboard navega en fase dashboard;
-// el resto es href="#" y se cablea al construir cada módulo.
-const FUTURE = "#";
 
 const comun: NavItem[] = [
   { label: "Mi Perfil", href: "/perfil" },
@@ -40,7 +38,7 @@ const adminExtra: NavItem[] = [
       { label: "Devueltos", href: "/prestamos?estado=devuelto" },
     ],
   },
-  { label: "Estadísticas", href: FUTURE },
+  { label: "Estadísticas", href: "/estadisticas" },
 ];
 
 const prestatarioExtra: NavItem[] = [
