@@ -4,22 +4,27 @@ import { dependencias } from "@/db/schema/auth";
 import { recursos, tiposRecurso } from "@/db/schema/inventario";
 import { prestamos } from "@/db/schema/prestamos";
 import { users } from "@/db/schema/auth";
-import type { AdminLoanRow } from "@/components/ui/AdminLoansTable";
-import type { BorrowerLoanRow } from "@/components/ui/LoansTable";
+import type { PrestamoRow } from "@/components/prestamos/PrestamosView";
 
-function userDisplayName(firstName: string | null, lastName: string | null): string {
-  return `${firstName ?? ""} ${lastName ?? ""}`.trim() || "Usuario";
+function userDisplayName(firstName: string | null, lastName: string | null, codigo: string): string {
+  return `${firstName ?? ""} ${lastName ?? ""}`.trim() || `Cód. ${codigo}`;
 }
 
-/** Últimos 10 préstamos propios, más reciente primero. */
-export async function getBorrowerLoans(usuarioId: string): Promise<BorrowerLoanRow[]> {
+/** Últimos 10 préstamos propios, más reciente primero (desc(id), como /mis-prestamos). */
+export async function getBorrowerLoans(usuarioId: string): Promise<PrestamoRow[]> {
   const rows = await db
     .select({
-      recursoId: recursos.id,
+      prestamoId: prestamos.id,
+      solicitudId: prestamos.solicitudId,
+      recursoId: prestamos.recursoId,
+      qr: recursos.qr,
       recursoNombre: recursos.nombre,
+      tipoId: tiposRecurso.id,
+      dependenciaId: tiposRecurso.dependenciaId,
       dependenciaNombre: dependencias.nombre,
       fechaPrestamo: prestamos.fechaPrestamo,
       fechaDevolucion: prestamos.fechaDevolucion,
+      fechaDevolucionReal: prestamos.fechaDevolucionReal,
       devuelto: prestamos.devuelto,
     })
     .from(prestamos)
@@ -27,16 +32,23 @@ export async function getBorrowerLoans(usuarioId: string): Promise<BorrowerLoanR
     .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
     .innerJoin(dependencias, eq(tiposRecurso.dependenciaId, dependencias.id))
     .where(eq(prestamos.usuarioId, usuarioId))
-    .orderBy(desc(prestamos.fechaPrestamo))
+    .orderBy(desc(prestamos.id))
     .limit(10);
-  return rows;
+  return rows.map((r) => ({
+    ...r,
+    usuarioNombre: "",
+    usuarioId: "",
+    contratoUrl: null,
+    fechaPrestamo: r.fechaPrestamo.toISOString(),
+    fechaDevolucionReal: r.fechaDevolucionReal?.toISOString() ?? null,
+  }));
 }
 
-export type AdminLoansResult = { unassigned: true; rows: [] } | { unassigned: false; rows: AdminLoanRow[] };
+export type AdminLoansResult = { unassigned: true; rows: [] } | { unassigned: false; rows: PrestamoRow[] };
 
 /**
- * Préstamos recientes para admin/superadmin.
- * Admin: filtra por su DependenciaAdministrada (dependencias.administradorId).
+ * Últimos 10 préstamos para admin/superadmin (desc(id), como /prestamos).
+ * Admin: filtra por su dependencia (dependencias.administradorId).
  * Sin dependencia asignada → vacío seguro. Superadmin (isSuperadmin) → global.
  */
 export async function getAdminLoans(opts: {
@@ -58,12 +70,19 @@ export async function getAdminLoans(opts: {
 
   const rows = await db
     .select({
-      recursoId: recursos.id,
+      prestamoId: prestamos.id,
+      solicitudId: prestamos.solicitudId,
+      recursoId: prestamos.recursoId,
+      qr: recursos.qr,
       recursoNombre: recursos.nombre,
-      usuarioFirstName: users.firstName,
-      usuarioLastName: users.lastName,
+      usuarioId: prestamos.usuarioId,
+      tipoId: tiposRecurso.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      codigo: users.codigo,
       fechaPrestamo: prestamos.fechaPrestamo,
       fechaDevolucion: prestamos.fechaDevolucion,
+      fechaDevolucionReal: prestamos.fechaDevolucionReal,
       devuelto: prestamos.devuelto,
       contratoUrl: prestamos.contratoPrestamoUrl,
     })
@@ -72,17 +91,25 @@ export async function getAdminLoans(opts: {
     .innerJoin(tiposRecurso, eq(recursos.tipoId, tiposRecurso.id))
     .innerJoin(users, eq(prestamos.usuarioId, users.id))
     .where(where ? and(where) : undefined)
-    .orderBy(desc(prestamos.fechaPrestamo))
+    .orderBy(desc(prestamos.id))
     .limit(10);
 
   return {
     unassigned: false,
     rows: rows.map((r) => ({
+      prestamoId: r.prestamoId,
+      solicitudId: r.solicitudId,
       recursoId: r.recursoId,
+      qr: r.qr,
       recursoNombre: r.recursoNombre,
-      usuarioNombre: userDisplayName(r.usuarioFirstName, r.usuarioLastName),
-      fechaPrestamo: r.fechaPrestamo,
+      usuarioNombre: userDisplayName(r.firstName, r.lastName, r.codigo),
+      usuarioId: r.usuarioId,
+      tipoId: r.tipoId,
+      dependenciaId: 0,
+      dependenciaNombre: "",
+      fechaPrestamo: r.fechaPrestamo.toISOString(),
       fechaDevolucion: r.fechaDevolucion,
+      fechaDevolucionReal: r.fechaDevolucionReal?.toISOString() ?? null,
       devuelto: r.devuelto,
       contratoUrl: r.contratoUrl,
     })),

@@ -4,12 +4,9 @@ import { db } from "@/db";
 import { users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { getAdminLoans, getBorrowerLoans } from "@/lib/dashboard-data";
-import { AdminOverview } from "@/components/dashboard/AdminOverview";
-import { BorrowerOverview } from "@/components/dashboard/BorrowerOverview";
-import { mockAdminLoans, mockBorrowerLoans, mockSuperadminLoans } from "@/mocks/dashboard";
-
-/** Mocks solo en desarrollo con MOCK_DASHBOARD=1. En producción siempre datos reales. */
-const USE_MOCKS = process.env.MOCK_DASHBOARD === "1" && process.env.NODE_ENV !== "production";
+import { PrestamosView } from "@/components/prestamos/PrestamosView";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export default async function DashboardPage() {
   const session = await getSession();
@@ -22,18 +19,52 @@ export default async function DashboardPage() {
   if (!user) redirect("/login");
 
   if (user.rol === "estudiante" || user.rol === "profesor") {
-    const rows = USE_MOCKS ? mockBorrowerLoans : await getBorrowerLoans(user.id);
+    const rows = await getBorrowerLoans(user.id);
     const title = user.rol === "profesor" ? "Panel de Profesor" : "Panel de Estudiante";
-    return <BorrowerOverview title={title} rows={rows} />;
+    return (
+      <PrestamosView
+        scope="propias"
+        estadoInicial="todas"
+        qInicial=""
+        initialData={rows}
+        pagina={1}
+        totalPaginas={1}
+        total={rows.length}
+        destacarId={null}
+        titulo={title}
+        modoReciente
+      />
+    );
   }
 
   if (user.rol === "admin" || user.rol === "superadmin") {
-    if (USE_MOCKS) {
-      return <AdminOverview rows={user.rol === "superadmin" ? mockSuperadminLoans : mockAdminLoans} />;
-    }
     const result = await getAdminLoans({ adminId: user.id, isSuperadmin: user.rol === "superadmin" });
-    if (result.unassigned) return <AdminOverview rows={[]} unassigned />;
-    return <AdminOverview rows={result.rows} />;
+    if (result.unassigned) {
+      return (
+        <div className="mx-auto w-full max-w-7xl rounded-[20px] bg-gradient-to-br from-white to-zinc-50 p-6 shadow-[0_25px_45px_rgba(0,0,0,0.08)] sm:p-10 dark:from-zinc-900 dark:to-zinc-950">
+          <PageHeader title="Panel de Administración" />
+          <EmptyState
+            variant="alert"
+            message="No administras ninguna dependencia. Pide al superadmin que te asigne una."
+          />
+        </div>
+      );
+    }
+    return (
+      <PrestamosView
+        scope="dependencia"
+        estadoInicial="todas"
+        qInicial=""
+        initialData={result.rows}
+        pagina={1}
+        totalPaginas={1}
+        total={result.rows.length}
+        destacarId={null}
+        titulo="Panel de Administración"
+        modoReciente
+        soloLectura={user.rol === "superadmin"}
+      />
+    );
   }
 
   redirect("/login");

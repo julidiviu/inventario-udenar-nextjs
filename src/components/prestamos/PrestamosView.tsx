@@ -67,6 +67,10 @@ interface PrestamosViewProps {
   /** ?destacar=: id de préstamo a resaltar (llega desde una solicitud). */
   destacarId: number | null;
   titulo: string;
+  /** Dashboard (últimos 10): oculta contador, buscador y paginador. */
+  modoReciente?: boolean;
+  /** Dashboard superadmin (global): oculta la columna Acciones (el PATCH es solo admin). */
+  soloLectura?: boolean;
 }
 
 function EstadoBadge({ devuelto }: { devuelto: boolean }) {
@@ -169,7 +173,14 @@ export function PrestamosView({
   total,
   destacarId,
   titulo,
+  modoReciente,
+  soloLectura,
 }: PrestamosViewProps) {
+  const mostrarContador = !modoReciente;
+  const mostrarAcciones = scope === "dependencia" && !soloLectura;
+  let columnas = scope === "dependencia" ? 8 : 7;
+  if (!mostrarContador) columnas -= 1;
+  if (!mostrarAcciones && scope === "dependencia") columnas -= 1;
   const router = useRouter();
   const pathname = usePathname();
   const [query, setQuery] = useState(qInicial);
@@ -242,21 +253,23 @@ export function PrestamosView({
     <div className="mx-auto w-full max-w-7xl rounded-[20px] bg-gradient-to-br from-white to-zinc-50 p-6 shadow-[0_25px_45px_rgba(0,0,0,0.08)] sm:p-10 dark:from-zinc-900 dark:to-zinc-950">
       <PageHeader title={titulo} />
 
-      <div className="mb-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={
-            scope === "dependencia"
-              ? "🔍 Buscar por QR, recurso o usuario..."
-              : "🔍 Buscar por QR, recurso o dependencia..."
-          }
-          className="sm:max-w-sm"
-        />
-        <p className="rounded-[20px] border border-brand-700 bg-brand-700/5 px-4 py-1.5 text-sm font-bold whitespace-nowrap text-brand-700 dark:text-brand-100">
-          {FILTRO_PRESTAMO_LABEL[estadoInicial]} · Mostrando {inicio}–{fin} de {total} préstamos
-        </p>
-      </div>
+      {!modoReciente && (
+        <div className="mb-6 flex flex-col items-center justify-between gap-4 sm:flex-row">
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder={
+              scope === "dependencia"
+                ? "🔍 Buscar por QR, recurso o usuario..."
+                : "🔍 Buscar por QR, recurso o dependencia..."
+            }
+            className="sm:max-w-sm"
+          />
+          <p className="rounded-[20px] border border-brand-700 bg-brand-700/5 px-4 py-1.5 text-sm font-bold whitespace-nowrap text-brand-700 dark:text-brand-100">
+            {FILTRO_PRESTAMO_LABEL[estadoInicial]} · Mostrando {inicio}–{fin} de {total} préstamos
+          </p>
+        </div>
+      )}
 
       {actionError && (
         <p className="mb-4 rounded-[10px] border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-300">
@@ -275,9 +288,9 @@ export function PrestamosView({
                 {scope === "propias" && <th className="px-3 py-2 font-semibold">Dependencia</th>}
                 <th className="px-3 py-2 font-semibold">Fecha de Préstamo</th>
                 <th className="px-3 py-2 font-semibold">Fecha de Devolución</th>
-                <th className="px-3 py-2 font-semibold">Contador de Días</th>
+                {mostrarContador && <th className="px-3 py-2 font-semibold">Contador de Días</th>}
                 <th className="px-3 py-2 font-semibold">Estado</th>
-                {scope === "dependencia" && <th className="px-3 py-2 font-semibold">Acciones</th>}
+                {mostrarAcciones && <th className="px-3 py-2 font-semibold">Acciones</th>}
               </tr>
             </thead>
             <tbody>
@@ -340,13 +353,15 @@ export function PrestamosView({
                       ? formatFechaHoraCO(r.fechaDevolucionReal)
                       : formatFechaCO(r.fechaDevolucion)}
                   </td>
-                  <td className="px-3 py-2">
-                    <ContadorBadge row={r} />
-                  </td>
+                  {mostrarContador && (
+                    <td className="px-3 py-2">
+                      <ContadorBadge row={r} />
+                    </td>
+                  )}
                   <td className="px-3 py-2">
                     <EstadoBadge devuelto={r.devuelto} />
                   </td>
-                  {scope === "dependencia" && (
+                  {mostrarAcciones && (
                     <td className="px-3 py-2">
                       <Acciones
                         row={r}
@@ -366,7 +381,7 @@ export function PrestamosView({
               ))}
               {initialData.length === 0 && (
                 <tr>
-                  <td colSpan={scope === "dependencia" ? 8 : 7}>
+                  <td colSpan={columnas}>
                     <EmptyState
                       message={
                         qInicial
@@ -382,7 +397,9 @@ export function PrestamosView({
         </div>
       </section>
 
-      <Paginador estado={estadoInicial} q={qInicial} pagina={pagina} totalPaginas={totalPaginas} />
+      {!modoReciente && (
+        <Paginador estado={estadoInicial} q={qInicial} pagina={pagina} totalPaginas={totalPaginas} />
+      )}
 
       {extender && (
         <ExtenderPrestamoDialog

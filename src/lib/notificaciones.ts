@@ -26,14 +26,14 @@ export const TIPO_META: Record<TipoNotificacion, { label: string; clases: string
 export function urlParaTipo(tipo: TipoNotificacion): string | null {
   switch (tipo) {
     case "SOLICITUD":
-      return "/solicitudes?estado=todas";
+      return "/solicitudes?estado=pendiente";
     case "RECHAZADA":
-      return "/mis-solicitudes?estado=todas";
+      return "/mis-solicitudes?estado=rechazada";
     case "APROBADA":
-      return "/mis-solicitudes?estado=aprobada";
-    case "DEVUELTA":
     case "EXTENDIDA":
-      return "/mis-prestamos?estado=todas";
+      return "/mis-prestamos?estado=pendiente";
+    case "DEVUELTA":
+      return "/mis-prestamos?estado=devuelto";
     default:
       return null;
   }
