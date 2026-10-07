@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { dependencias, notificaciones, recursos, solicitudesPrestamo, tiposRecurso, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { dbErrorCause } from "@/lib/dependencias";
+import { plantillaSolicitudCreada, sendEmail } from "@/lib/email";
 import { validateSolicitudInput } from "@/lib/recursos";
 
 /** POST /api/solicitudes — solo estudiante y profesor. */
@@ -86,6 +87,22 @@ export async function POST(req: Request) {
       }
       return [s];
     });
+    // Email best-effort tras el commit: si Brevo falla, la solicitud ya quedó creada.
+    if (adminId) {
+      try {
+        const [admin] = await db
+          .select({ email: users.email, firstName: users.firstName, lastName: users.lastName, codigo: users.codigo })
+          .from(users)
+          .where(eq(users.id, adminId));
+        if (admin?.email) {
+          const adminNombre = `${admin.firstName ?? ""} ${admin.lastName ?? ""}`.trim() || `Cód. ${admin.codigo}`;
+          const t = plantillaSolicitudCreada({ adminNombre, solicitante, recurso: recurso.nombre, fechaDevolucion: valid.data.fechaDevolucion });
+          await sendEmail({ toEmail: admin.email, toName: adminNombre, ...t });
+        }
+      } catch {
+        // best-effort: no se revierte la solicitud por un fallo de correo
+      }
+    }
     return NextResponse.json({ ok: true, solicitud: row }, { status: 201 });
   } catch (err) {
     if (dbErrorCause(err).code === "23505") {

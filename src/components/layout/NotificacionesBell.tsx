@@ -136,7 +136,7 @@ export function NotificacionesBell() {
   }
 
   function handleAbrir(item: NotificacionItem) {
-    const url = urlParaTipo(item.tipo);
+    const url = item.url ?? urlParaTipo(item.tipo);
     if (!url) return;
     setOpen(false);
     router.push(url);
@@ -173,7 +173,7 @@ export function NotificacionesBell() {
             )}
             {items.map((n) => {
               const meta = TIPO_META[n.tipo];
-              const url = urlParaTipo(n.tipo);
+              const url = n.url ?? urlParaTipo(n.tipo);
               return (
                 <div
                   key={n.id}

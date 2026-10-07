@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { notificaciones, prestamos, recursos, tiposRecurso } from "@/db/schema";
+import { notificaciones, prestamos, recursos, tiposRecurso, users } from "@/db/schema";
 import { getSession } from "@/lib/auth";
 import { deleteFromBlob, isBlobUrl } from "@/lib/blob";
 import { generarYSubirContrato, obtenerDatosContratoPorPrestamo } from "@/lib/contratos";
 import { formatFechaCO } from "@/lib/dates";
+import { plantillaPrestamoDevuelto, plantillaPrestamoExtendido, sendEmail } from "@/lib/email";
 import { pisoExtension, validateAccionPrestamo, validateExtender } from "@/lib/prestamos";
 import { adminDependenciaId } from "@/lib/recursos-db";
 
@@ -103,6 +104,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       }
       return NextResponse.json({ error: "No se pudo registrar la devolución." }, { status: 500 });
     }
+    // Email best-effort tras el commit: si Brevo falla, la devolución ya quedó registrada.
+    try {
+      const [dest] = await db
+        .select({ email: users.email, firstName: users.firstName, lastName: users.lastName, codigo: users.codigo, rol: users.rol })
+        .from(users)
+        .where(eq(users.id, current.usuarioId));
+      if (dest?.email) {
+        const nombre = `${dest.firstName ?? ""} ${dest.lastName ?? ""}`.trim() || `Cód. ${dest.codigo}`;
+        const t = plantillaPrestamoDevuelto({ nombre, rol: dest.rol, recurso: current.recursoNombre });
+        await sendEmail({ toEmail: dest.email, toName: nombre, ...t });
+      }
+    } catch {
+      // best-effort: no se revierte la devolución por un fallo de correo
+    }
     return NextResponse.json({ ok: true, devuelto: true });
   }
 
@@ -160,6 +175,20 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     } catch {
       // best-effort
     }
+  }
+  // Email best-effort tras el commit: si Brevo falla, la extensión ya quedó registrada.
+  try {
+    const [dest] = await db
+      .select({ email: users.email, firstName: users.firstName, lastName: users.lastName, codigo: users.codigo, rol: users.rol })
+      .from(users)
+      .where(eq(users.id, current.usuarioId));
+    if (dest?.email) {
+      const nombre = `${dest.firstName ?? ""} ${dest.lastName ?? ""}`.trim() || `Cód. ${dest.codigo}`;
+      const t = plantillaPrestamoExtendido({ nombre, rol: dest.rol, recurso: current.recursoNombre, nuevaFecha });
+      await sendEmail({ toEmail: dest.email, toName: nombre, ...t });
+    }
+  } catch {
+    // best-effort: no se revierte la extensión por un fallo de correo
   }
   return NextResponse.json({ ok: true, fechaDevolucion: nuevaFecha });
 }

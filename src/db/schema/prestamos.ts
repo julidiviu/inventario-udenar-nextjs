@@ -111,6 +111,30 @@ export const notificaciones = pgTable(
   ],
 );
 
+export const avisosVencimiento = pgTable(
+  "avisos_vencimiento",
+  {
+    id: serial("id").primaryKey(),
+    prestamoId: integer("prestamo_id")
+      .notNull()
+      .references(() => prestamos.id, { onDelete: "cascade" }),
+    // Congela la fecha que originó el aviso: si el admin extiende,
+    // la clave cambia y el préstamo genera avisos nuevos correctos.
+    fechaDevolucion: date("fecha_devolucion").notNull(),
+    diasRestantes: integer("dias_restantes").notNull(),
+    enviadoAt: timestamp("enviado_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // Idempotencia del cron: un reintento no reenvía (ON CONFLICT DO NOTHING).
+    uniqueIndex("avisos_prestamo_fecha_dias_uniq").on(
+      table.prestamoId,
+      table.fechaDevolucion,
+      table.diasRestantes,
+    ),
+    index("avisos_fecha_idx").on(table.fechaDevolucion),
+  ],
+);
+
 export const solicitudesPrestamoRelations = relations(
   solicitudesPrestamo,
   ({ one }) => ({

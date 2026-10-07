@@ -39,6 +39,7 @@ export async function GET(req: Request) {
         mensaje: notificaciones.mensaje,
         fecha: notificaciones.fecha,
         leida: notificaciones.leida,
+        url: notificaciones.url,
       })
       .from(notificaciones)
       .where(cond)

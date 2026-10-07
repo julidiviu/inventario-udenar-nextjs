@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { deleteFromBlob, isBlobUrl } from "@/lib/blob";
 import { generarYSubirContrato, obtenerDatosContrato } from "@/lib/contratos";
 import { dbErrorCause } from "@/lib/dependencias";
+import { plantillaSolicitudAprobada, plantillaSolicitudRechazada, sendEmail } from "@/lib/email";
 import { adminDependenciaId } from "@/lib/recursos-db";
 import { validateAccion } from "@/lib/solicitudes";
 
@@ -145,6 +146,40 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       );
     }
     return NextResponse.json({ error: "No se pudo procesar la solicitud." }, { status: 500 });
+  }
+
+  // Email best-effort tras el commit: si Brevo falla, el rechazo ya quedó registrado.
+  if (valid.data.accion === "rechazar") {
+    try {
+      const [dest] = await db
+        .select({ email: users.email, firstName: users.firstName, lastName: users.lastName, codigo: users.codigo, rol: users.rol })
+        .from(users)
+        .where(eq(users.id, current.usuarioId));
+      if (dest?.email) {
+        const nombre = nombreCompleto(dest.firstName, dest.lastName, dest.codigo);
+        const t = plantillaSolicitudRechazada({ nombre, rol: dest.rol, recurso: current.recursoNombre, adminNombre });
+        await sendEmail({ toEmail: dest.email, toName: nombre, ...t });
+      }
+    } catch {
+      // best-effort: no se revierte el rechazo por un fallo de correo
+    }
+  }
+
+  // Email best-effort tras el commit: si Brevo falla, la aprobación ya quedó registrada.
+  if (valid.data.accion === "aprobar") {
+    try {
+      const [dest] = await db
+        .select({ email: users.email, firstName: users.firstName, lastName: users.lastName, codigo: users.codigo, rol: users.rol })
+        .from(users)
+        .where(eq(users.id, current.usuarioId));
+      if (dest?.email) {
+        const nombre = nombreCompleto(dest.firstName, dest.lastName, dest.codigo);
+        const t = plantillaSolicitudAprobada({ nombre, rol: dest.rol, recurso: current.recursoNombre, fechaDevolucion: current.fechaDevolucion, adminNombre });
+        await sendEmail({ toEmail: dest.email, toName: nombre, ...t });
+      }
+    } catch {
+      // best-effort: no se revierte la aprobación por un fallo de correo
+    }
   }
 
   return NextResponse.json({ ok: true, estado: estadoDB });
