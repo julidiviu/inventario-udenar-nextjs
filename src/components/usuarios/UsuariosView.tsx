@@ -44,7 +44,10 @@ async function readError(res: Response): Promise<string> {
 }
 
 export function UsuariosView({ initialUsuarios, pagina, totalPaginas, total, qInicial }: UsuariosViewProps) {
-  const [usuarios, setUsuarios] = useState<UsuarioRow[]>(initialUsuarios);
+  // Los datos se renderizan directo del servidor (como PrestamosView): tras
+  // navegar (?q=/página) el servidor re-renderiza con filas nuevas. Nada de
+  // useState para la lista (un estado copiado quedaría congelado y la tabla
+  // no se actualizaría hasta recargar).
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<UsuarioRow | null>(null);
   const [saving, setSaving] = useState(false);
@@ -108,11 +111,11 @@ export function UsuariosView({ initialUsuarios, pagina, totalPaginas, total, qIn
         setFormError(await readError(res));
         return;
       }
-      const row = (await res.json()).usuario as UsuarioRow;
-      setUsuarios((prev) => prev.map((u) => (u.id === editing.id ? row : u)));
       setModalOpen(false);
       setEditing(null);
       setDone("Usuario actualizado.");
+      // Relee del servidor para reflejar la edición (patrón de solicitudes).
+      router.refresh();
     } catch {
       setFormError("No se pudo guardar el usuario.");
     } finally {
@@ -140,7 +143,7 @@ export function UsuariosView({ initialUsuarios, pagina, totalPaginas, total, qIn
         </div>
       </div>
 
-      {usuarios.length === 0 ? (
+      {initialUsuarios.length === 0 ? (
         <EmptyState
           message={qInicial ? "Sin resultados para esa búsqueda." : "No hay usuarios registrados."}
           variant="alert"
@@ -160,7 +163,7 @@ export function UsuariosView({ initialUsuarios, pagina, totalPaginas, total, qIn
                 </tr>
               </thead>
               <tbody>
-                {usuarios.map((u) => (
+                {initialUsuarios.map((u) => (
                   <tr
                     key={u.id}
                     className="border-t border-zinc-200 text-center transition hover:bg-brand-50 dark:border-zinc-800 dark:hover:bg-zinc-800"
