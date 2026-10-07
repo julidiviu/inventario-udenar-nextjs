@@ -28,6 +28,7 @@ async function loadCurrent(userId: string) {
       codigo: users.codigo,
       rol: users.rol,
       programa: users.programa,
+      email: users.email,
       fotoUrl: users.fotoUrl,
       cedula: users.cedula,
       telefono: users.telefono,
@@ -45,6 +46,7 @@ function toPerfil(user: NonNullable<Awaited<ReturnType<typeof loadCurrent>>>) {
     rol: user.rol,
     rolLabel: getRolLabel(user.rol),
     programa: user.programa ?? "",
+    email: emptyToNull(user.email),
     fotoUrl: emptyToNull(user.fotoUrl),
     cedula: emptyToNull(user.cedula),
     telefono: emptyToNull(user.telefono),
@@ -166,12 +168,25 @@ export async function PATCH(req: Request) {
         codigo: users.codigo,
         rol: users.rol,
         programa: users.programa,
+        email: users.email,
         fotoUrl: users.fotoUrl,
         cedula: users.cedula,
         telefono: users.telefono,
         firmaUrl: users.firmaUrl,
       });
   } catch (err) {
+    // La foto/firma se subieron antes del update: si falla y la DB nunca las
+    // referenció (difieren de la previa por construcción del patch),
+    // no dejar huérfanos en Blob.
+    for (const subida of [patch.fotoUrl, patch.firmaUrl]) {
+      if (subida && isBlobUrl(subida)) {
+        try {
+          await deleteFromBlob(subida);
+        } catch {
+          // Best-effort: el error que se reporta es el del update.
+        }
+      }
+    }
     const cause = (err as { cause?: { code?: string; constraint_name?: string } })?.cause;
     if (cause?.code === "23505") {
       return NextResponse.json({ error: "Esa cédula ya está registrada.", field: "cedula" }, { status: 409 });

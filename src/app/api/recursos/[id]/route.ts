@@ -142,6 +142,16 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     });
   } catch (err) {
     const { code } = dbErrorCause(err);
+    // La foto se subió antes del update: si falla y la DB nunca la referenció
+    // (difiere de la previa), no dejar huérfano en Blob.
+    const subida = valid.data.fotoUrl;
+    if (subida && subida !== current.fotoUrl && isBlobUrl(subida)) {
+      try {
+        await deleteFromBlob(subida);
+      } catch {
+        // Best-effort: el error que se reporta es el del update.
+      }
+    }
     if (code === "23505") {
       return NextResponse.json({ error: "Ese código QR ya está registrado.", field: "qr" }, { status: 409 });
     }

@@ -72,7 +72,7 @@ export function getNavByRole(rol: Rol): NavItem[] {
       return [...comun, ...prestatarioExtra];
     case "superadmin":
       // Mínimo aprobado: Dashboard + Dependencias.
-      return [...comun, { label: "Dependencias", href: "/dependencias" }];
+      return [...comun, { label: "Dependencias", href: "/dependencias" }, { label: "Administradores", href: "/administradores" }, { label: "Usuarios", href: "/usuarios" }];
     default:
       return comun;
   }

@@ -8,11 +8,11 @@ import { getFullName, getRolLabel } from "@/components/layout/user";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { emptyToNull } from "@/lib/perfil";
 
-/** Perfil completo de un usuario, solo lectura para el admin (incluye cédula y firma). */
+/** Perfil completo de un usuario, solo lectura para admin y superadmin (incluye cédula y firma). */
 export default async function UsuarioDetallePage({ params }: { params: Promise<{ id: string }> }) {
   const session = await getSession();
   if (!session) redirect("/login");
-  if (session.rol !== "admin") redirect("/dashboard");
+  if (session.rol !== "admin" && session.rol !== "superadmin") redirect("/dashboard");
 
   const { id } = await params;
   const [user] = await db

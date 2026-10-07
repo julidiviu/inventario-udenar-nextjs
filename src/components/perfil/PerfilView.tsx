@@ -193,6 +193,14 @@ export function PerfilView({ initial }: { initial: PerfilUsuario }) {
                   {usuario.programa}
                 </dd>
               </div>
+              <div className="flex gap-2">
+                <dt className="font-semibold text-brand-700 dark:text-brand-100">
+                  Correo:
+                </dt>
+                <dd className="text-zinc-600 dark:text-zinc-300">
+                  {usuario.email ?? "—"}
+                </dd>
+              </div>
             </div>
           </dl>
 

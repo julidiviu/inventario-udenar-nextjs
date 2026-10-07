@@ -13,7 +13,8 @@ import {
 import { hrefConParams } from "@/lib/paginacion";
 
 interface PaginadorProps {
-  estado: string;
+  /** Vacío en módulos sin filtro de estado (usuarios): se omite de la URL. */
+  estado?: string;
   q: string;
   pagina: number;
   totalPaginas: number;
@@ -38,7 +39,7 @@ function items(pagina: number, total: number): (number | "…")[] {
  * Paginador compartido (solicitudes y préstamos). Solo aparece con 2+ páginas.
  * Links con next/link: navegación SPA sin recarga (conserva el tema).
  */
-export function Paginador({ estado, q, pagina, totalPaginas }: PaginadorProps) {
+export function Paginador({ estado = "", q, pagina, totalPaginas }: PaginadorProps) {
   const pathname = usePathname();
   if (totalPaginas <= 1) return null;
   const url = (p: number) => hrefConParams(pathname, { estado, pagina: p, q });

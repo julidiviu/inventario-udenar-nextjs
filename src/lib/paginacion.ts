@@ -35,10 +35,10 @@ export function parseDestacar(raw: unknown): number | null {
   return Number.isInteger(n) && n > 0 ? n : null;
 }
 
-/** URL canónica: siempre estado, q solo si hay búsqueda, pagina solo si > 1. */
+/** URL canónica: estado solo si hay (usuarios no filtra por estado), q solo si hay búsqueda, pagina solo si > 1. */
 export function hrefConParams(base: string, { estado, pagina, q }: PaginaParams): string {
   const sp = new URLSearchParams();
-  sp.set("estado", estado);
+  if (estado) sp.set("estado", estado);
   if (q) sp.set("q", q);
   if (pagina > 1) sp.set("pagina", String(pagina));
   return `${base}?${sp}`;

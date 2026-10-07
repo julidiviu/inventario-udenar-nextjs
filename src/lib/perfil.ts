@@ -5,6 +5,7 @@ export interface PerfilUsuario {
   rol: string;
   rolLabel: string;
   programa: string;
+  email: string | null;
   fotoUrl: string | null;
   cedula: string | null;
   telefono: string | null;
