@@ -173,17 +173,19 @@ export default function LoginPage() {
               ? data.error
               : 'Credenciales inválidas.',
         });
+        setIsLoading(false);
         return;
       }
+      // Éxito: isLoading queda en true a propósito para que el botón
+      // siga deshabilitado mientras Next compila/navega a /dashboard
+      // (en frío tras `npm run dev` tarda varios segundos con "Rendering").
       router.replace('/dashboard');
-      router.refresh();
     } catch {
       setToast({
         kind: 'error',
         title: 'No pudimos iniciar tu sesión',
         msg: 'No se pudo conectar con el servidor. Inténtalo de nuevo.',
       });
-    } finally {
       setIsLoading(false);
     }
   }
@@ -526,7 +528,7 @@ export default function LoginPage() {
                         aria-hidden="true"
                       />
                     )}
-                    {isLoading ? 'Verificando…' : 'Ingresar'}
+                    {isLoading ? 'Ingresando…' : 'Ingresar'}
                   </button>
 
                   <p className="pt-1 text-center text-[13px] leading-relaxed text-stone-500">
