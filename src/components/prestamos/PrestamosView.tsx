@@ -346,7 +346,7 @@ export function PrestamosView({
                   )}
                   {scope === "propias" && <td className="px-3 py-2">{r.dependenciaNombre}</td>}
                   <td className="px-3 py-2">
-                    {r.devuelto ? formatFechaHoraCO(r.fechaPrestamo) : formatFechaCO(r.fechaPrestamo)}
+                    {formatFechaHoraCO(r.fechaPrestamo)}
                   </td>
                   <td className="px-3 py-2">
                     {r.devuelto && r.fechaDevolucionReal
