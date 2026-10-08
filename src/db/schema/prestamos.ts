@@ -17,6 +17,20 @@ import { dependencias, users } from "./auth";
 import { recursos } from "./inventario";
 import { estadoSolicitudEnum, tipoNotificacionEnum } from "./enums";
 
+/**
+ * Cierre de semestre: tope máximo elegible al solicitar/extender (una sola
+ * fila, id=1; sin fila = sin tope). Lo fija el superadmin desde /calendario.
+ * No es un CHECK (no puede leer otra tabla): se valida en las APIs.
+ */
+export const cierreSemestre = pgTable("cierre_semestre", {
+  id: integer("id").primaryKey().default(1),
+  fecha: date("fecha").notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
+
 export const solicitudesPrestamo = pgTable(
   "solicitudes_prestamo",
   {

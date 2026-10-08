@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/style.css";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { addBusinessDays } from "@/lib/recursos";
+import { formatFechaCO } from "@/lib/dates";
+import { addBusinessDays, toISODate } from "@/lib/recursos";
 import type { Recurso } from "./types";
 
 interface SolicitudModalProps {
@@ -34,10 +35,35 @@ export function SolicitudModal({ open, recurso, saving, serverError, onClose, on
   const [min] = useState(minFecha);
   const [fecha, setFecha] = useState<Date | undefined>(undefined);
   const [error, setError] = useState("");
+  // Tope del superadmin (/calendario). Null = sin restricción.
+  const [max, setMax] = useState<Date | null>(null);
+  const [maxISO, setMaxISO] = useState<string | null>(null);
+
+  // Autocontenido: el tope se lee al abrir (el servidor también lo valida).
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/cierre")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => {
+        if (vivo && b && typeof b.fecha === "string") {
+          const [y, m, d] = b.fecha.split("-").map(Number);
+          setMax(new Date(y, m - 1, d));
+          setMaxISO(b.fecha);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   function handleConfirm() {
     if (!recurso || !fecha) {
       setError("Selecciona la fecha estimada de devolución.");
+      return;
+    }
+    if (maxISO && toISODate(fecha) > maxISO) {
+      setError(`La fecha máxima es el ${formatFechaCO(maxISO)} (cierre de semestre).`);
       return;
     }
     setError("");
@@ -51,7 +77,7 @@ export function SolicitudModal({ open, recurso, saving, serverError, onClose, on
           <DialogTitle>Solicitar préstamo</DialogTitle>
           <DialogDescription>
             {recurso
-              ? `Recurso: ${recurso.nombre} (${recurso.qr}). Elige la fecha estimada de devolución (mínimo 5 días hábiles).`
+              ? `Recurso: ${recurso.nombre} (${recurso.qr}). Elige la fecha estimada de devolución (mínimo 5 días hábiles${maxISO ? `, máximo ${formatFechaCO(maxISO)}` : ""}).`
               : "Elige la fecha estimada de devolución."}
           </DialogDescription>
         </DialogHeader>
@@ -61,7 +87,7 @@ export function SolicitudModal({ open, recurso, saving, serverError, onClose, on
             mode="single"
             selected={fecha}
             onSelect={setFecha}
-            disabled={[{ before: min }, { dayOfWeek: [0, 6] }]}
+            disabled={[{ before: min }, { dayOfWeek: [0, 6] }, ...(max ? [{ after: max }] : [])]}
             weekStartsOn={1}
           />
         </div>

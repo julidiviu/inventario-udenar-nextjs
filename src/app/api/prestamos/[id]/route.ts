@@ -8,6 +8,7 @@ import { generarYSubirContrato, obtenerDatosContratoPorPrestamo } from "@/lib/co
 import { formatFechaCO } from "@/lib/dates";
 import { plantillaPrestamoDevuelto, plantillaPrestamoExtendido, sendEmail } from "@/lib/email";
 import { pisoExtension, validateAccionPrestamo, validateExtender } from "@/lib/prestamos";
+import { excedeCierre, getCierreFecha } from "@/lib/cierre";
 import { adminDependenciaId } from "@/lib/recursos-db";
 
 function parseId(id: string): number | null {
@@ -127,6 +128,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     return NextResponse.json({ error: valid.error, field: valid.field }, { status: 400 });
   }
   const nuevaFecha = valid.data.nuevaFechaDevolucion;
+  // Tope del superadmin (/calendario): antes de generar el contrato (espejo del DayPicker).
+  const msg = excedeCierre(nuevaFecha, await getCierreFecha());
+  if (msg) {
+    return NextResponse.json({ error: msg, field: "nuevaFechaDevolucion" }, { status: 400 });
+  }
 
   const full = await obtenerDatosContratoPorPrestamo(id, nuevaFecha);
   if (!full || full.dependenciaId !== dependenciaId) {

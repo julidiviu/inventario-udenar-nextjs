@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import "react-day-picker/style.css";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,27 @@ export function ExtenderPrestamoDialog({
   const [error, setError] = useState("");
   const [serverError, setServerError] = useState("");
   const [exito, setExito] = useState<string | null>(null);
+  // Tope del superadmin (/calendario). Null = sin restricción.
+  const [max, setMax] = useState<Date | null>(null);
+  const [maxISO, setMaxISO] = useState<string | null>(null);
+
+  // Autocontenido: el tope se lee al abrir (el servidor también lo valida).
+  useEffect(() => {
+    let vivo = true;
+    fetch("/api/cierre")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((b) => {
+        if (vivo && b && typeof b.fecha === "string") {
+          const [y, m, d] = b.fecha.split("-").map(Number);
+          setMax(new Date(y, m - 1, d));
+          setMaxISO(b.fecha);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, []);
 
   async function handleConfirm() {
     if (!fecha) {
@@ -55,6 +76,10 @@ export function ExtenderPrestamoDialog({
     const iso = toISODate(fecha);
     if (iso < piso) {
       setError("La nueva fecha debe ser posterior a la devolución pactada.");
+      return;
+    }
+    if (maxISO && iso > maxISO) {
+      setError(`La fecha máxima es el ${formatFechaCO(maxISO)} (cierre de semestre).`);
       return;
     }
     setError("");
@@ -111,7 +136,10 @@ export function ExtenderPrestamoDialog({
           <DialogTitle>Extender préstamo</DialogTitle>
           <DialogDescription>
             Recurso: {recursoNombre} ({qr}). Devolución pactada: {formatFechaCO(fechaDevolucion)}.
-            Elige la nueva fecha (posterior a la pactada).
+            Elige la nueva fecha (posterior a la pactada{maxISO ? `, máximo ${formatFechaCO(maxISO)}` : ""}).
+            {maxISO && maxISO < piso && (
+              <> No hay fechas válidas: el cierre es anterior al mínimo extensible.</>
+            )}
           </DialogDescription>
         </DialogHeader>
 
@@ -120,7 +148,7 @@ export function ExtenderPrestamoDialog({
             mode="single"
             selected={fecha}
             onSelect={setFecha}
-            disabled={[{ before: new Date(`${piso}T00:00:00`) }]}
+            disabled={[{ before: new Date(`${piso}T00:00:00`) }, ...(max ? [{ after: max }] : [])]}
             weekStartsOn={1}
           />
         </div>

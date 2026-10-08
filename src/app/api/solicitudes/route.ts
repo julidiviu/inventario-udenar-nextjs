@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { dbErrorCause } from "@/lib/dependencias";
 import { plantillaSolicitudCreada, sendEmail } from "@/lib/email";
 import { validateSolicitudInput } from "@/lib/recursos";
+import { excedeCierre, getCierreFecha } from "@/lib/cierre";
 
 /** POST /api/solicitudes — solo estudiante y profesor. */
 export async function POST(req: Request) {
@@ -24,6 +25,11 @@ export async function POST(req: Request) {
   const valid = validateSolicitudInput(body);
   if ("error" in valid) {
     return NextResponse.json({ error: valid.error, field: valid.field }, { status: 400 });
+  }
+  // Tope del superadmin (/calendario): espejo del DayPicker.
+  const msg = excedeCierre(valid.data.fechaDevolucion, await getCierreFecha());
+  if (msg) {
+    return NextResponse.json({ error: msg, field: "fechaDevolucion" }, { status: 400 });
   }
 
   const [user] = await db
