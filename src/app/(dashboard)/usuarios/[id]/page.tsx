@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { users } from "@/db/schema";
@@ -15,6 +15,10 @@ export default async function UsuarioDetallePage({ params }: { params: Promise<{
   if (session.rol !== "admin" && session.rol !== "superadmin") redirect("/dashboard");
 
   const { id } = await params;
+  // Id no-uuid (ej. /usuarios/abc): ir a /dashboard en vez de
+  // enviar el string a la columna uuid (500 "invalid input syntax").
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id))
+    redirect("/dashboard");
   const [user] = await db
     .select({
       codigo: users.codigo,
@@ -30,7 +34,7 @@ export default async function UsuarioDetallePage({ params }: { params: Promise<{
     })
     .from(users)
     .where(and(eq(users.id, id), eq(users.isActive, true), isNull(users.deletedAt)));
-  if (!user) notFound();
+  if (!user) redirect("/dashboard");
 
   const nombre = getFullName(user.firstName, user.lastName, user.codigo);
   const fotoUrl = emptyToNull(user.fotoUrl);

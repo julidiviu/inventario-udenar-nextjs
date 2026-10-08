@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { db } from "@/db";
 import { dependencias, recursos, solicitudesPrestamo, tiposRecurso, users } from "@/db/schema";
@@ -19,11 +19,15 @@ export default async function RecursosDependenciaPage({
   if (session.rol !== "estudiante" && session.rol !== "profesor") redirect("/dashboard");
 
   const { id } = await params;
+  // Id no numérico (ej. /dependencias/abc o %7C1): ir a /dashboard
+  // en vez de enviar NaN a Postgres (500 "invalid input syntax").
+  const depId = Number(id);
+  if (!Number.isInteger(depId) || depId <= 0) redirect("/dashboard");
   const [dep] = await db
     .select({ id: dependencias.id, nombre: dependencias.nombre })
     .from(dependencias)
-    .where(and(eq(dependencias.id, Number(id)), isNull(dependencias.deletedAt)));
-  if (!dep) notFound();
+    .where(and(eq(dependencias.id, depId), isNull(dependencias.deletedAt)));
+  if (!dep) redirect("/dashboard");
 
   const tipos = await db
     .select({
