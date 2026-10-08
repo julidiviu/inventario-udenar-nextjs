@@ -212,6 +212,7 @@ export function SolicitudesView({
   const [confirm, setConfirm] = useState<Confirmacion>(null);
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [exitoAprobar, setExitoAprobar] = useState<SolicitudRow | null>(null);
 
   // Búsqueda en servidor con debounce: actualiza ?q= y vuelve a página 1.
   useEffect(() => {
@@ -265,6 +266,9 @@ export function SolicitudesView({
       }
       await res.json();
       setConfirm(null);
+      // Al aprobar se muestra el modal de éxito (con link a préstamos);
+      // el resto de acciones solo revalidan en la misma página.
+      if (accion === "aprobar") setExitoAprobar(row);
       router.refresh();
     } catch {
       setActionError("No se pudo completar la operación.");
@@ -414,6 +418,27 @@ export function SolicitudesView({
               className={confirm ? CONFIRM_TEXTO[confirm.accion].clase : ""}
             >
               {saving ? "Procesando..." : confirm ? CONFIRM_TEXTO[confirm.accion].confirmar : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={exitoAprobar !== null} onOpenChange={(v) => !v && setExitoAprobar(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Solicitud aprobada</DialogTitle>
+            <DialogDescription>
+              {exitoAprobar
+                ? `El préstamo de «${exitoAprobar.recursoNombre}» (${exitoAprobar.qr}) quedó registrado.`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExitoAprobar(null)}>
+              Quedarse
+            </Button>
+            <Button asChild>
+              <Link href="/prestamos?estado=pendiente">Ver préstamos</Link>
             </Button>
           </DialogFooter>
         </DialogContent>
