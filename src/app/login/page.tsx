@@ -179,7 +179,10 @@ export default function LoginPage() {
       // Éxito: isLoading queda en true a propósito para que el botón
       // siga deshabilitado mientras Next compila/navega a /dashboard
       // (en frío tras `npm run dev` tarda varios segundos con "Rendering").
+      // refresh: invalida la caché del router (ej. redirect a /login
+      // cacheado tras un logout), espejo del LogoutButton.
       router.replace('/dashboard');
+      router.refresh();
     } catch {
       setToast({
         kind: 'error',
